@@ -5,7 +5,7 @@ pub struct FileHash {
   path : String
   hash : String
   size : Int
-}
+} derive(Eq)
 
 ///|
 pub struct Manifest {
@@ -15,6 +15,13 @@ pub struct Manifest {
   total_files : Int
   total_size : Int
   created_at : String
+  files : Array[FileHash]
+}
+
+///|
+pub(all) struct FileEntry {
+  path : String
+  content : String
 }
 
 ///|
@@ -30,6 +37,7 @@ pub fn Manifest::new(
     total_files: 0,
     total_size: 0,
     created_at: "2025-01-01",
+    files: [],
   }
 }
 
@@ -241,11 +249,116 @@ pub fn hash_string(content : String) -> String {
 }
 
 ///|
+/// Compute hash for a single file entry
+pub fn compute_file_hash(entry : FileEntry) -> FileHash {
+  FileHash::{
+    path: entry.path,
+    hash: sha256(entry.content),
+    size: entry.content.length(),
+  }
+}
+
+///|
+/// Generate manifest from a list of file entries
+pub fn generate_manifest(
+  package_name : String,
+  package_version : String,
+  entries : Array[FileEntry],
+) -> Manifest {
+  let files : Array[FileHash] = []
+  let mut total_size = 0
+  for i = 0; i < entries.length(); i = i + 1 {
+    let fh = compute_file_hash(entries[i])
+    total_size = total_size + fh.size
+    files.push(fh)
+  }
+  Manifest::{
+    version: "1.0.0",
+    package_name,
+    package_version,
+    total_files: entries.length(),
+    total_size,
+    created_at: "2025-01-01",
+    files,
+  }
+}
+
+///|
+/// Verify file entries against an existing manifest, returns list of mismatched paths
+pub fn verify_manifest(
+  manifest : Manifest,
+  entries : Array[FileEntry],
+) -> Array[String] {
+  let mismatches : Array[String] = []
+  for i = 0; i < entries.length(); i = i + 1 {
+    let current_hash = sha256(entries[i].content)
+    let mut found = false
+    for j = 0; j < manifest.files.length(); j = j + 1 {
+      if manifest.files[j].path == entries[i].path {
+        found = true
+        if manifest.files[j].hash != current_hash {
+          mismatches.push(entries[i].path)
+        }
+        break
+      }
+    }
+    if not(found) {
+      mismatches.push(entries[i].path)
+    }
+  }
+  for j = 0; j < manifest.files.length(); j = j + 1 {
+    let mut found = false
+    for i = 0; i < entries.length(); i = i + 1 {
+      if entries[i].path == manifest.files[j].path {
+        found = true
+        break
+      }
+    }
+    if not(found) {
+      mismatches.push(manifest.files[j].path)
+    }
+  }
+  mismatches
+}
+
+///|
 /// Get manifest summary
 pub fn manifest_summary(manifest : Manifest) -> String {
   "Package: " +
   manifest.package_name +
   " v" +
   manifest.package_version +
-  ", Files: 0"
+  ", Files: " +
+  manifest.total_files.to_string() +
+  ", Size: " +
+  manifest.total_size.to_string()
+}
+
+///|
+/// Serialize manifest to JSON string
+pub fn manifest_to_json(manifest : Manifest) -> String {
+  let mut json = "{\n"
+  json = json + "  \"version\": \"" + manifest.version + "\",\n"
+  json = json + "  \"package_name\": \"" + manifest.package_name + "\",\n"
+  json = json + "  \"package_version\": \"" + manifest.package_version + "\",\n"
+  json = json + "  \"total_files\": " + manifest.total_files.to_string() + ",\n"
+  json = json + "  \"total_size\": " + manifest.total_size.to_string() + ",\n"
+  json = json + "  \"files\": [\n"
+  for i = 0; i < manifest.files.length(); i = i + 1 {
+    let f = manifest.files[i]
+    json = json +
+      "    {\"path\": \"" +
+      f.path +
+      "\", \"hash\": \"" +
+      f.hash +
+      "\", \"size\": " +
+      f.size.to_string() +
+      "}"
+    if i < manifest.files.length() - 1 {
+      json = json + ","
+    }
+    json = json + "\n"
+  }
+  json = json + "  ]\n}"
+  json
 }

@@ -2,14 +2,14 @@
 /// MoonGuard CLI
 /// Supply chain security toolchain for MoonBit
 
-///| Main entry point
+///|
+/// Main entry point
 fn main {
   let args = @env.args()
   if args.length() < 2 {
     print_usage()
     return
   }
-
   let command = args[1]
   match command {
     "init" => run_init()
@@ -26,7 +26,8 @@ fn main {
   }
 }
 
-///| Print usage information
+///|
+/// Print usage information
 fn print_usage() -> Unit {
   println("MoonGuard - MoonBit Supply Chain Security Tool")
   println("")
@@ -45,29 +46,33 @@ fn print_usage() -> Unit {
   println("  -v, --verbose  Verbose output")
 }
 
-///| Run init command
+///|
+/// Run init command
 fn run_init() -> Unit {
   println("Initializing MoonGuard project...")
   println("Created empty trust store")
   println("Run 'moon_guard trust add' to add trusted keys")
 }
 
-///| Run sign command
+///|
+/// Run sign command
 fn run_sign() -> Unit {
   println("Signing package manifest...")
   println("Package signed successfully!")
   println("(Demo mode - full crypto implementation in lib modules)")
 }
 
-///| Run verify command
+///|
+/// Run verify command
 fn run_verify() -> Unit {
   println("Verifying package integrity...")
   println("Package verification PASSED")
   println("(Demo mode - full verification in lib modules)")
 }
 
-///| Run trust command
-fn run_trust(args: Array[String]) -> Unit {
+///|
+/// Run trust command
+fn run_trust(args : Array[String]) -> Unit {
   if args.length() < 3 {
     println("Usage: moon_guard trust <add|list|remove> [options]")
     return
@@ -81,7 +86,8 @@ fn run_trust(args: Array[String]) -> Unit {
   }
 }
 
-///| Run audit command
+///|
+/// Run audit command
 fn run_audit() -> Unit {
   println("MoonGuard Trust Audit")
   println("======================")
@@ -91,7 +97,8 @@ fn run_audit() -> Unit {
   println("Run 'moon_guard init' to initialize")
 }
 
-///| Run report command
+///|
+/// Run report command
 fn run_report() -> Unit {
   println("Security Report")
   println("===============")

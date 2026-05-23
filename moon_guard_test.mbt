@@ -1,25 +1,27 @@
 ///|
 /// MoonGuard Attack Simulation Test
 /// Demonstrates how MoonGuard detects package tampering
-
 pub struct PackageFile {
-  name: String
-  content: String
+  name : String
+  content : String
 }
 
+///|
 pub struct ManifestEntry {
-  path: String
-  hash: String
-  size: Int
+  path : String
+  hash : String
+  size : Int
 }
 
+///|
 pub struct Sig {
-  manifest_hash: String
-  signer_key_id: String
+  manifest_hash : String
+  signer_key_id : String
 }
 
-///| Simulated SHA-256 hash (demo only)
-fn simulate_sha256(content: String) -> String {
+///|
+/// Simulated SHA-256 hash (demo only)
+fn simulate_sha256(content : String) -> String {
   let prefix = "sha256:"
   let mut hash = ""
   let len = content.length()
@@ -35,26 +37,24 @@ fn simulate_sha256(content: String) -> String {
   prefix + hash
 }
 
-///| Run the full attack simulation
+///|
+/// Run the full attack simulation
 pub fn run_full_simulation() -> String {
   let mut output = "=== MoonGuard Attack Simulation ===\n\n"
 
   // Step 1: Legitimate developer creates package
   output = output + "[Step 1] Developer creates package\n"
   output = output + "----------------------------------\n"
-
   let file1 = "src/main.mbt"
   let content1 = "// Main application code\nfn main() { println(\"Hello\") }"
   let file2 = "src/lib.mbt"
   let content2 = "// Library code\npub fn add(a: Int, b: Int) -> Int { a + b }"
-
   output = output + "File: " + file1 + "\n"
   output = output + "  Content: " + content1 + "\n"
 
   // Step 2: Generate manifest (hash each file)
   output = output + "\n[Step 2] Generate manifest (file hashes)\n"
   output = output + "------------------------------------------\n"
-
   let hash1 = simulate_sha256(content1)
   let hash2 = simulate_sha256(content2)
   output = output + "File: " + file1 + "\n"
@@ -65,7 +65,6 @@ pub fn run_full_simulation() -> String {
   // Step 3: Developer signs the manifest
   output = output + "\n[Step 3] Developer signs the manifest\n"
   output = output + "-------------------------------------\n"
-
   let manifest_content = hash1 + hash2
   let manifest_hash = simulate_sha256(manifest_content)
   output = output + "Manifest Content: " + manifest_content + "\n"
@@ -76,7 +75,6 @@ pub fn run_full_simulation() -> String {
   // Step 4: Attacker tampers with the package
   output = output + "\n[Step 4] ATTACKER tampers with package!\n"
   output = output + "--------------------------------------------\n"
-
   let tampered_content = "// Malicious code injected!\nfn main() { println(\"HACKED\") }"
   let tampered_hash = simulate_sha256(tampered_content)
   output = output + "Attacker modified: " + file1 + "\n"
@@ -87,7 +85,6 @@ pub fn run_full_simulation() -> String {
   // Step 5: Verify the package (should fail!)
   output = output + "\n[Step 5] MoonGuard verifies package\n"
   output = output + "--------------------------------------\n"
-
   let verification_failed = hash1 != tampered_hash
   if verification_failed {
     output = output + "File: " + file1 + " -> VERIFICATION FAILED!\n"
@@ -99,7 +96,6 @@ pub fn run_full_simulation() -> String {
   // Step 6: Generate security report
   output = output + "\n[Step 6] Generate Security Report\n"
   output = output + "----------------------------------\n"
-
   output = output + "-----------------------------------\n"
   output = output + "| MoonGuard Security Report      |\n"
   output = output + "-----------------------------------\n"
@@ -113,13 +109,11 @@ pub fn run_full_simulation() -> String {
   output = output + "  File: " + file1 + "\n"
   output = output + "  Issue: Hash mismatch\n"
   output = output + "  Remediation: DO NOT USE\n"
-
   if verification_failed {
     output = output + "\n========================================\n"
     output = output + "=== ATTACK DETECTED SUCCESSFULLY ===\n"
     output = output + "========================================\n"
   }
-
   output
 }
 

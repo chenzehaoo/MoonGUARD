@@ -2,8 +2,19 @@
   "is-main": true,
   "import": [
     {
-      "path": "chenzehaoo/moon_guard",
-      "alias": "lib"
+      "path": "chenzehaoo/moon_guard/lib/manifest"
+    },
+    {
+      "path": "chenzehaoo/moon_guard/lib/crypto"
+    },
+    {
+      "path": "chenzehaoo/moon_guard/lib/trust"
+    },
+    {
+      "path": "chenzehaoo/moon_guard/lib/verify"
+    },
+    {
+      "path": "chenzehaoo/moon_guard/lib/report"
     }
   ]
 }

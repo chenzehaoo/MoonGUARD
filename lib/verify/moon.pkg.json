@@ -1,5 +1,11 @@
 {
   "name": "moon_guard/verify",
   "version": "0.1.0",
-  "description": "Package verification modules"
+  "description": "Package verification and typosquat detection",
+  "import": [
+    "chenzehaoo/moon_guard/lib/crypto"
+  ],
+  "test-import": [
+    "chenzehaoo/moon_guard/lib/crypto"
+  ]
 }

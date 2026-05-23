@@ -1,13 +1,13 @@
 ///|
-pub struct KeyPair {
-  pub public_key : String
-  pub secret_key : String
+pub(all) struct KeyPair {
+  public_key : String
+  secret_key : String
 }
 
 ///|
-pub struct Signature {
-  pub r : String
-  pub s : String
+pub(all) struct Signature {
+  r : String
+  s : String
 }
 
 ///|

@@ -1,0 +1,5 @@
+{
+  "name": "moon_guard/manifest",
+  "version": "0.1.0",
+  "description": "Package manifest generation and hash calculation"
+}

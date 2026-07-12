@@ -1,5 +1,8 @@
 {
   "name": "moon_guard/trust",
   "version": "0.1.0",
-  "description": "Local trusted key store management"
+  "description": "Trusted key store with JSON and PEM persistence (RFC 7468). 支持 JSON 与 PEM（RFC 7468）持久化的可信密钥库",
+  "import": [
+    "chenzehaoo/moon_guard/lib/manifest"
+  ]
 }

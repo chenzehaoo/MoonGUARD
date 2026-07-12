@@ -1,0 +1,14 @@
+import {
+  "chenzehaoo/moon_guard/lib/manifest",
+  "chenzehaoo/moon_guard/lib/crypto",
+  "chenzehaoo/moon_guard/lib/trust",
+  "chenzehaoo/moon_guard/lib/verify",
+  "chenzehaoo/moon_guard/lib/report",
+}
+
+options(
+  name: "moon_guard",
+  version: "0.1.0",
+  description: "MoonGuard root package (end-to-end tests and shared types) / MoonGuard 根包（端到端测试与共享类型）",
+  "is-main": false,
+)

@@ -37,7 +37,6 @@ test "bench: typosquat detector handles 100 suspects in linear time" {
   // None of the suspects match any known name within distance ≤ 2.
   inspect(all.length(), content="0")
   let _ = @verify.typosquat_summary(suspects, known)
-
 }
 
 ///|

@@ -3,7 +3,25 @@ pub(all) enum TrustLevel {
   Full
   Partial
   Untrusted
-} derive(Eq, Show)
+} derive(Eq)
+
+///|
+pub fn TrustLevel::to_string(self : TrustLevel) -> String {
+  match self {
+    Full => "Full"
+    Partial => "Partial"
+    Untrusted => "Untrusted"
+  }
+}
+
+///|
+pub impl Show for TrustLevel with fn output(self : TrustLevel, logger : &Logger) -> Unit {
+  match self {
+    Full => logger.write_string("Full")
+    Partial => logger.write_string("Partial")
+    Untrusted => logger.write_string("Untrusted")
+  }
+}
 
 ///|
 pub(all) struct TrustedKey {

@@ -1,0 +1,5 @@
+options(
+  name: "moon_guard/crypto",
+  version: "0.1.0",
+  description: "Ed25519 digital signatures for MoonGuard (RFC 8032, pure MoonBit, no external crypto). Ed25519 数字签名（RFC 8032，纯 MoonBit 实现，无外部加密库）",
+)

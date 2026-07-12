@@ -47,7 +47,6 @@ test "fuzz: trust store add + from_json roundtrip preserves count" {
         @trust.TrustLevel::Partial
       },
     )
-
   }
   inspect(store.key_count(), content="5")
   let json = @trust.trust_store_to_json(store)

@@ -1,0 +1,16 @@
+import {
+  "chenzehaoo/moon_guard/lib/manifest",
+  "chenzehaoo/moon_guard/lib/crypto",
+  "chenzehaoo/moon_guard/lib/trust",
+  "chenzehaoo/moon_guard/lib/report",
+}
+
+import {
+  "chenzehaoo/moon_guard/lib/crypto",
+} for "test"
+
+options(
+  name: "moon_guard/verify",
+  version: "0.1.0",
+  description: "Full audit pipeline (integrity + signature + trust) and Levenshtein/homoglyph typosquat detection. 完整审计流水线（完整性 + 签名 + 可信度）与 Levenshtein / 同形（homoglyph）typosquat 检测",
+)

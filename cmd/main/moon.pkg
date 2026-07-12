@@ -1,0 +1,11 @@
+import {
+  "chenzehaoo/moon_guard/lib/manifest",
+  "chenzehaoo/moon_guard/lib/crypto",
+  "chenzehaoo/moon_guard/lib/trust",
+  "chenzehaoo/moon_guard/lib/verify",
+  "chenzehaoo/moon_guard/lib/report",
+}
+
+options(
+  "is-main": true,
+)

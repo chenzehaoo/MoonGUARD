@@ -238,8 +238,8 @@ fn has_homoglyph_substitution(suspect : String, known : String) -> Bool {
   let mut diffs = 0
   let mut i = 0
   while i < suspect.length() {
-    let sc = suspect[i]
-    let kc = known[i]
+    let sc = suspect[i].to_int()
+    let kc = known[i].to_int()
     if sc != kc {
       if not(are_homoglyphs(sc, kc)) {
         return false

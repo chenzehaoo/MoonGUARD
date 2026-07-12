@@ -110,21 +110,21 @@ fn maj(x : UInt, y : UInt, z : UInt) -> UInt {
 fn string_to_bytes(s : String) -> Array[Byte] {
   let bytes : Array[Byte] = []
   for i = 0; i < s.length(); i = i + 1 {
-    let c = s[i]
+    let c = s[i].to_int()
     if c < 0x80 {
       bytes.push(c.to_byte())
     } else if c < 0x800 {
-      bytes.push((0xC0 | (c >> 6)).to_byte())
-      bytes.push((0x80 | (c & 0x3F)).to_byte())
+      bytes.push(((0xC0 | (c >> 6)) & 0xFF).to_byte())
+      bytes.push(((0x80 | (c & 0x3F)) & 0xFF).to_byte())
     } else if c < 0x10000 {
-      bytes.push((0xE0 | (c >> 12)).to_byte())
-      bytes.push((0x80 | ((c >> 6) & 0x3F)).to_byte())
-      bytes.push((0x80 | (c & 0x3F)).to_byte())
+      bytes.push(((0xE0 | (c >> 12)) & 0xFF).to_byte())
+      bytes.push(((0x80 | ((c >> 6) & 0x3F)) & 0xFF).to_byte())
+      bytes.push(((0x80 | (c & 0x3F)) & 0xFF).to_byte())
     } else {
-      bytes.push((0xF0 | (c >> 18)).to_byte())
-      bytes.push((0x80 | ((c >> 12) & 0x3F)).to_byte())
-      bytes.push((0x80 | ((c >> 6) & 0x3F)).to_byte())
-      bytes.push((0x80 | (c & 0x3F)).to_byte())
+      bytes.push(((0xF0 | (c >> 18)) & 0xFF).to_byte())
+      bytes.push(((0x80 | ((c >> 12) & 0x3F)) & 0xFF).to_byte())
+      bytes.push(((0x80 | ((c >> 6) & 0x3F)) & 0xFF).to_byte())
+      bytes.push(((0x80 | (c & 0x3F)) & 0xFF).to_byte())
     }
   }
   bytes

@@ -5,14 +5,37 @@ pub(all) enum RiskLevel {
   Medium
   Low
   Info
-} derive(Eq, Show)
+} derive(Eq)
+
+///|
+pub impl Show for RiskLevel with fn output(self : RiskLevel, logger : &Logger) -> Unit {
+  match self {
+    Critical => logger.write_string("Critical")
+    High => logger.write_string("High")
+    Medium => logger.write_string("Medium")
+    Low => logger.write_string("Low")
+    Info => logger.write_string("Info")
+  }
+}
 
 ///|
 pub(all) enum ReportStatus {
   Pass
   Warning
   Fail
-} derive(Eq, Show)
+} derive(Eq)
+
+///|
+pub impl Show for ReportStatus with fn output(
+  self : ReportStatus,
+  logger : &Logger,
+) -> Unit {
+  match self {
+    Pass => logger.write_string("Pass")
+    Warning => logger.write_string("Warning")
+    Fail => logger.write_string("Fail")
+  }
+}
 
 ///|
 pub(all) struct Finding {

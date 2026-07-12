@@ -15,8 +15,8 @@ pub fn hex_to_bytes(hex : String) -> Array[Byte] {
   let len = hex.length() / 2
   let bytes : Array[Byte] = Array::make(len, b'\x00')
   for i = 0; i < len; i = i + 1 {
-    let hi = hex_char_val(hex[i * 2])
-    let lo = hex_char_val(hex[i * 2 + 1])
+    let hi = hex_char_val(hex[i * 2].to_int())
+    let lo = hex_char_val(hex[i * 2 + 1].to_int())
     bytes[i] = ((hi << 4) | lo).to_byte()
   }
   bytes
@@ -31,8 +31,7 @@ fn hex_char_val(c : Int) -> Int {
   } else if c >= 65 && c <= 70 {
     c - 55
   } else {
-    let r : Int = 0
-    r
+    0
   }
 }
 

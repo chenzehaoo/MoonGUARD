@@ -25,7 +25,7 @@ fn main {
 
 ///|
 fn print_version() -> Unit {
-  println("MoonGuard v0.1.0 / MoonGuard v0.1.0")
+  println("MoonGuard v0.1.9 / MoonGuard v0.1.9")
   println(
     "MoonBit supply chain security toolchain / MoonBit 供应链安全工具链",
   )
@@ -387,7 +387,7 @@ fn parse_file_entries(
 ///|
 fn find_char(s : String, c : Int) -> Int {
   for i = 0; i < s.length(); i = i + 1 {
-    if s[i] == c {
+    if s[i].to_int() == c {
       return i
     }
   }

@@ -302,7 +302,7 @@ pub fn verify_manifest(
         break
       }
     }
-    if not(found) {
+    if !found {
       mismatches.push(entries[i].path)
     }
   }
@@ -314,7 +314,7 @@ pub fn verify_manifest(
         break
       }
     }
-    if not(found) {
+    if !found {
       mismatches.push(manifest.files[j].path)
     }
   }

@@ -31,7 +31,8 @@ fn hex_char_val(c : Int) -> Int {
   } else if c >= 65 && c <= 70 {
     c - 55
   } else {
-    0
+    let r : Int = 0
+    r
   }
 }
 

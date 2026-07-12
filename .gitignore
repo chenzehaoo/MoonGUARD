@@ -2,26 +2,10 @@
 target/
 .mooncakes/
 .moonagent/
-
-# Moon coverage output
-coverage/
-*.log
-coverage_report.txt
-uncovered.log
-
-# OS / editor noise
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-
-# Python tooling (we don't ship Python)
-__pycache__/
-*.pyc
+_build/
+*.moon_db
 
 # Generated interface files (regenerated via `moon info`)
 pkg.generated.mbti
-
-# Local-only files
-.idea/
-.vscode/
+*.mbti
+report.mi

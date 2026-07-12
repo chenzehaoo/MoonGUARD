@@ -1,5 +1,5 @@
 {
   "name": "moon_guard/manifest",
   "version": "0.1.0",
-  "description": "Package manifest generation and hash calculation"
+  "description": "Package manifest generation and SHA-256 hash calculation (pure MoonBit). 包清单生成与 SHA-256 哈希计算（纯 MoonBit 实现）"
 }

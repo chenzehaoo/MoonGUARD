@@ -132,3 +132,18 @@ test "manifest_summary" {
   let s = @manifest.manifest_summary(m)
   inspect(s, content="Package: my_pkg v2.0.0, Files: 2, Size: 10")
 }
+
+///|
+test "take_chars_ returns first n characters" {
+  inspect(@manifest.take_chars_("abcdef", 3), content="abc")
+  inspect(@manifest.take_chars_("ab", 5), content="ab")
+  inspect(@manifest.take_chars_("", 3), content="")
+  inspect(@manifest.take_chars_("x", 0), content="")
+}
+
+///|
+test "slice_chars_ returns [start, end) substring" {
+  inspect(@manifest.slice_chars_("abcdef", 1, 4), content="bcd")
+  inspect(@manifest.slice_chars_("abc", 0, 3), content="abc")
+  inspect(@manifest.slice_chars_("abc", 5, 10), content="")
+}

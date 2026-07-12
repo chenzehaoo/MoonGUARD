@@ -362,3 +362,29 @@ pub fn manifest_to_json(manifest : Manifest) -> String {
   json = json + "  ]\n}"
   json
 }
+
+///|
+/// Take the first `n` characters of `s`. Replaces the deprecated
+/// `String::substring(start=0, end=n)` call site used by the verify and
+/// CLI modules.
+pub fn take_chars_(s : String, n : Int) -> String {
+  let buf = StringBuilder::new(size_hint=n)
+  let cap = if n < s.length() { n } else { s.length() }
+  for i = 0; i < cap; i = i + 1 {
+    buf.write_char(s[i].unsafe_to_char())
+  }
+  buf.to_string()
+}
+
+///|
+/// Take the inclusive-exclusive `[start, end)` slice of `s`. Replaces the
+/// deprecated `String::substring(start, end)` call site used by the verify
+/// and CLI modules.
+pub fn slice_chars_(s : String, start : Int, end_ : Int) -> String {
+  let buf = StringBuilder::new(size_hint=end_ - start)
+  let upper = if end_ < s.length() { end_ } else { s.length() }
+  for i = start; i < upper; i = i + 1 {
+    buf.write_char(s[i].unsafe_to_char())
+  }
+  buf.to_string()
+}

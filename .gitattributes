@@ -1,0 +1,5 @@
+
+# Force LF for text files
+*.md text eol=lf
+*.mbt text eol=lf
+*.json text eol=lf

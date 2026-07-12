@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    name: moon check / fmt / info / test (${{ matrix.os }} / ${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: wasm
+            install: 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash'
+          - os: ubuntu-latest
+            target: native
+            install: 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash'
+          - os: macos-latest
+            target: wasm
+            install: 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash'
+          - os: macos-latest
+            target: native
+            install: 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash'
+          - os: windows-latest
+            target: wasm
+            install: 'irm https://cli.moonbitlang.com/install/powershell.ps1 | iex'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up MoonBit (${{ matrix.os }})
+        shell: |
+          {{
+            matrix.os == 'windows-latest' && 'pwsh' ||
+            'bash'
+          }}
+        run: |
+          ${{ matrix.install }}
+          if ('${{ matrix.os }}' -eq 'windows-latest') {
+            echo "$HOME/.moon/bin" >> "$env:GITHUB_PATH"
+          } else {
+            echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          }
+
+      - name: Update MoonBit dependencies
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        run: moon update
+
+      - name: moon fmt --check
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        run: moon fmt --check
+
+      - name: moon info
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        run: moon info --target ${{ matrix.target }}
+
+      - name: moon check (--deny-warn)
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        run: moon check --target ${{ matrix.target }} --deny-warn
+
+      - name: moon test
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        run: moon test --target ${{ matrix.target }}

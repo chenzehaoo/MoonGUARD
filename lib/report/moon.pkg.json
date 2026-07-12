@@ -1,5 +1,5 @@
 {
   "name": "moon_guard/report",
   "version": "0.1.0",
-  "description": "Security report generation"
+  "description": "Security report generation with CVSS-style 0-10 risk score and JSON export. 安全报告生成，含 CVSS 风格 0-10 风险评分与 JSON 导出"
 }

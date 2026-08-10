@@ -147,3 +147,39 @@ test "slice_chars_ returns [start, end) substring" {
   inspect(@manifest.slice_chars_("abc", 0, 3), content="abc")
   inspect(@manifest.slice_chars_("abc", 5, 10), content="")
 }
+
+///|
+test "manifest_from_json round-trips manifest_to_json" {
+  let entries = [
+    @manifest.FileEntry::{ path: "a.mbt", content: "let a = 1" },
+    @manifest.FileEntry::{ path: "src/b.mbt", content: "let b = 2" },
+  ]
+  let m = @manifest.generate_manifest("my_pkg", "2.0.0", entries)
+  let json = @manifest.manifest_to_json(m)
+  match @manifest.manifest_from_json(json) {
+    Some(parsed) => {
+      inspect(parsed.package_name, content="my_pkg")
+      inspect(parsed.package_version, content="2.0.0")
+      inspect(parsed.total_files, content="2")
+      fn is_hash64(h : String) -> Bool {
+        h.length() == 64
+      }
+      inspect(
+        parsed.files.length(),
+        content=(
+          #|2
+        ),
+      )
+      inspect(is_hash64(parsed.files[0].hash), content="true")
+    }
+    None => inspect("parse failed", content="demo")
+  }
+}
+
+///|
+test "manifest_from_json rejects malformed document" {
+  match @manifest.manifest_from_json("not json at all") {
+    None => inspect(true, content="true")
+    _ => inspect(false, content="true")
+  }
+}

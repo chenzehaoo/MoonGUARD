@@ -1,26 +1,31 @@
 ///|
-let ed_p : BigInt = @bigint.BigInt::from_hex(
+let ed_p : BigInt = @bigint.BigInt::from_string(
   "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed",
+  radix=16,
 )
 
 ///|
-let ed_d : BigInt = @bigint.BigInt::from_hex(
+let ed_d : BigInt = @bigint.BigInt::from_string(
   "52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3",
+  radix=16,
 )
 
 ///|
-let ed_L : BigInt = @bigint.BigInt::from_hex(
+let ed_L : BigInt = @bigint.BigInt::from_string(
   "1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed",
+  radix=16,
 )
 
 ///|
-let ed_Gx : BigInt = @bigint.BigInt::from_hex(
+let ed_Gx : BigInt = @bigint.BigInt::from_string(
   "216936d3cd6e53fec0a4e231fdd6dc5c692cc7609525a7b2c9562d608f25d51a",
+  radix=16,
 )
 
 ///|
-let ed_Gy : BigInt = @bigint.BigInt::from_hex(
+let ed_Gy : BigInt = @bigint.BigInt::from_string(
   "6666666666666666666666666666666666666666666666666666666666666658",
+  radix=16,
 )
 
 ///|

@@ -50,7 +50,7 @@ pub fn TrustStore::add_key(
   owner : String,
   trust_level : TrustLevel,
 ) -> Bool {
-  if not(validate_public_key_format(public_key)) {
+  if !validate_public_key_format(public_key) {
     return false
   }
   for i = 0; i < self.keys.length(); i = i + 1 {
@@ -142,6 +142,27 @@ pub fn TrustStore::replace_all(
 }
 
 ///|
+/// Persist this store to a JSON file at `path`, truncating any existing
+/// file. Returns `false` when the write fails (unwritable path, I/O error).
+/// This is the cross-process persistence entry point: one process writes,
+/// another process can `load_from_file` the same path and get the keys.
+pub fn TrustStore::save_to_file(self : TrustStore, path : String) -> Bool {
+  @fs.write_string_to_file(path, trust_store_to_json(self)) catch {
+    _ => return false
+  }
+  true
+}
+
+///|
+/// Load a trust store from a JSON file written by `save_to_file`. Returns
+/// `None` when the file is missing, unreadable, or contains a malformed
+/// trust-store document.
+pub fn load_store_from_file(path : String) -> TrustStore? {
+  let content = @fs.read_file_to_string(path) catch { _ => return None }
+  trust_store_from_json(content)
+}
+
+///|
 pub fn validate_public_key_format(public_key : String) -> Bool {
   if public_key.length() != 64 {
     return false
@@ -151,7 +172,7 @@ pub fn validate_public_key_format(public_key : String) -> Bool {
     let valid = (c >= 48 && c <= 57) ||
       (c >= 97 && c <= 102) ||
       (c >= 65 && c <= 70)
-    if not(valid) {
+    if !valid {
       return false
     }
   }
@@ -172,7 +193,7 @@ pub fn normalize_public_key(public_key : String) -> String? {
     let ok = (c >= 48 && c <= 57) ||
       (c >= 97 && c <= 102) ||
       (c >= 65 && c <= 70)
-    if not(ok) {
+    if !ok {
       return None
     }
     if c >= 65 && c <= 70 {
@@ -245,7 +266,7 @@ pub fn trust_store_from_json(json : String) -> TrustStore? {
       None => "2026-01-01"
     }
     // Skip entries whose public key isn't 64-char hex — they're invalid.
-    if not(validate_public_key_format(public_key)) {
+    if !validate_public_key_format(public_key) {
       return None
     }
     // Silently drop duplicate key_ids when re-loading.
@@ -330,10 +351,10 @@ pub fn public_key_to_pem(public_key : String) -> String {
 pub fn public_key_from_pem(pem : String) -> String? {
   let start = "-----BEGIN MOONGUARD PUBLIC KEY-----"
   let end = "-----END MOONGUARD PUBLIC KEY-----"
-  if not(contains_substring(pem, start)) {
+  if !contains_substring(pem, start) {
     return None
   }
-  if not(contains_substring(pem, end)) {
+  if !contains_substring(pem, end) {
     return None
   }
   // Find the body between the header and footer lines.

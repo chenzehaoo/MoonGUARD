@@ -23,7 +23,7 @@ pub(all) enum ReportStatus {
   Pass
   Warning
   Fail
-} derive(Eq)
+} derive(Eq, Debug)
 
 ///|
 pub impl Show for ReportStatus with fn output(
@@ -167,11 +167,16 @@ pub fn report_to_json(report : SecurityReport) -> String {
     Warning => "warning"
     Fail => "fail"
   }
-  let mut s = "{\"package\":\"" + report.package_name + "\","
-  s = s + "\"version\":\"" + report.package_version + "\","
+  let mut s = "{\"package\":\"" +
+    escape_json_string(report.package_name) +
+    "\","
+  s = s + "\"version\":\"" + escape_json_string(report.package_version) + "\","
   s = s + "\"status\":\"" + status_str + "\","
   s = s + "\"risk_score\":" + format_double(report.risk_score) + ","
-  s = s + "\"audit_timestamp\":\"" + report.audit_timestamp + "\","
+  s = s +
+    "\"audit_timestamp\":\"" +
+    escape_json_string(report.audit_timestamp) +
+    "\","
   s = s +
     "\"signature_verified\":" +
     report.signature_verified.to_string() +
@@ -183,10 +188,10 @@ pub fn report_to_json(report : SecurityReport) -> String {
       s = s + ","
     }
     let f = report.findings[i]
-    s = s + "{\"title\":\"" + f.title + "\","
+    s = s + "{\"title\":\"" + escape_json_string(f.title) + "\","
     s = s + "\"risk\":\"" + risk_level_str(f.risk_level) + "\","
-    s = s + "\"description\":\"" + f.description + "\","
-    s = s + "\"remediation\":\"" + f.remediation + "\"}"
+    s = s + "\"description\":\"" + escape_json_string(f.description) + "\","
+    s = s + "\"remediation\":\"" + escape_json_string(f.remediation) + "\"}"
   }
   s = s + "],"
   s = s + "\"typosquat_suspects\":["
@@ -194,10 +199,30 @@ pub fn report_to_json(report : SecurityReport) -> String {
     if i > 0 {
       s = s + ","
     }
-    s = s + "\"" + report.typosquat_suspects[i] + "\""
+    s = s + "\"" + escape_json_string(report.typosquat_suspects[i]) + "\""
   }
   s = s + "]}"
   s
+}
+
+///|
+/// Escape `"`, `\` and control characters so any user-influenced string
+/// can't smuggle stray JSON into a report document. This keeps the wire
+/// format well-formed even for hostile package/file names.
+fn escape_json_string(input : String) -> String {
+  let buf = StringBuilder::new(size_hint=input.length() + 8)
+  for i = 0; i < input.length(); i = i + 1 {
+    let c = input[i]
+    match c {
+      '"' => buf.write_string("\\\"")
+      '\\' => buf.write_string("\\\\")
+      '\n' => buf.write_string("\\n")
+      '\r' => buf.write_string("\\r")
+      '\t' => buf.write_string("\\t")
+      _ => buf.write_char(c.unsafe_to_char())
+    }
+  }
+  buf.to_string()
 }
 
 ///|

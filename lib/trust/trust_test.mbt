@@ -197,3 +197,31 @@ test "list_all returns defensive copy" {
   // list_all is a snapshot at call time, not a live view.
   inspect(snap.length(), content="1")
 }
+
+///|
+test "trust store file persistence round-trip" {
+  let dir = "moon_guard_trust_store_test"
+  let path = dir + "/trust.json"
+  if @fs.path_exists(dir) {
+    ignore(@fs.remove_file(path) catch { _ => () })
+    ignore(@fs.remove_dir(dir) catch { _ => () })
+  }
+  ignore(@fs.create_dir(dir) catch { _ => () })
+  let store = @trust.TrustStore::new()
+  let key = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+  ignore(store.add_key("key1", key, "alice", @trust.TrustLevel::Full))
+  ignore(store.add_key("key2", key, "bob", @trust.TrustLevel::Partial))
+  inspect(store.save_to_file(path), content="true")
+  let loaded = @trust.load_store_from_file(path)
+  match loaded {
+    Some(s2) => inspect(s2.key_count(), content="2")
+    None => inspect(-1, content="2")
+  }
+  ignore(@fs.remove_file(path) catch { _ => () })
+  ignore(@fs.remove_dir(dir) catch { _ => () })
+  // Missing file yields None, not a crash.
+  match @trust.load_store_from_file(dir + "/nope.json") {
+    None => inspect(true, content="true")
+    _ => inspect(false, content="true")
+  }
+}

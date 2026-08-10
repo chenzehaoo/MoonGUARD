@@ -6,9 +6,10 @@ import {
   "chenzehaoo/moon_guard/lib/report",
 }
 
+pkgtype(kind: "executable")
+
 options(
   name: "moon_guard_example/basic_audit",
   version: "0.1.0",
-  "is-main": true,
   description: "Minimal end-to-end audit pipeline using MoonGuard's public API. 最小可运行的端到端审计流水线（MoonGuard 公开 API 用法示例）",
 )

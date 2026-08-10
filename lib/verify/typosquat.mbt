@@ -120,7 +120,7 @@ pub fn typosquat_summary(
       }
       j = j + 1
     }
-    if not(seen) {
+    if !seen {
       suspects.push(s)
     }
     i = i + 1
@@ -241,7 +241,7 @@ fn has_homoglyph_substitution(suspect : String, known : String) -> Bool {
     let sc = suspect[i].to_int()
     let kc = known[i].to_int()
     if sc != kc {
-      if not(are_homoglyphs(sc, kc)) {
+      if !are_homoglyphs(sc, kc) {
         return false
       }
       diffs = diffs + 1

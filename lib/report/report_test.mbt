@@ -102,3 +102,24 @@ test "report json contains risk_score and timestamp" {
   inspect(json.contains("\"audit_timestamp\":"), content="true")
   inspect(json.contains("\"risk_score\":7.00"), content="true")
 }
+
+///|
+test "report json escapes quotes and backslashes" {
+  let r = @report.SecurityReport::new("pkg\"evil", "1.0.0")
+  r.add_finding(@report.Finding::{
+    title: "say \"hi\" \\ path",
+    description: "line1\nline2",
+    risk_level: @report.RiskLevel::High,
+    remediation: "tab\there",
+  })
+  r.typosquat_suspects.push("bad\"name")
+  let json = @report.report_to_json(r)
+  // Raw quotes inside the JSON body must be escaped, not structural.
+  inspect(json.contains("\\\""), content="true")
+  inspect(json.contains("\\\\"), content="true")
+  inspect(json.contains("\\n"), content="true")
+  inspect(json.contains("\\t"), content="true")
+  inspect(json.contains("\"package\":\"pkg\\\"evil\""), content="true")
+  // No unescaped raw newline may appear inside a string value.
+  inspect(json.contains("line1\nline2"), content="false")
+}

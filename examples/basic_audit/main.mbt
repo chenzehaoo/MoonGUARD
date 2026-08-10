@@ -61,7 +61,7 @@ fn main {
   let report = @report.SecurityReport::new("demo_pkg", "1.0.0")
   report.file_count = manifest.total_files
   report.signature_verified = result.is_valid
-  if not(result.is_valid) {
+  if !result.is_valid {
     report.add_finding(@report.Finding::{
       title: "Audit failed",
       description: "see errors",

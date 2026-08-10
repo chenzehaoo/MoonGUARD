@@ -1,11 +1,11 @@
 import {
+  "moonbitlang/core/env",
   "chenzehaoo/moon_guard/lib/manifest",
   "chenzehaoo/moon_guard/lib/crypto",
   "chenzehaoo/moon_guard/lib/trust",
   "chenzehaoo/moon_guard/lib/verify",
   "chenzehaoo/moon_guard/lib/report",
+  "chenzehaoo/moon_guard/lib/fs",
 }
 
-options(
-  "is-main": true,
-)
+pkgtype(kind: "executable")

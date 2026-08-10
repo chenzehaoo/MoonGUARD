@@ -45,7 +45,7 @@ pub fn verify_package(
   let sig_s = @manifest.slice_chars_(signature_hex, 64, 128)
   let sig = @crypto.Signature::{ r: sig_r, s: sig_s }
   let valid = @crypto.verify(content, sig, public_key_hex)
-  if not(valid) {
+  if !valid {
     errors.push("signature verification failed")
   }
   VerifyResult::{
@@ -90,7 +90,7 @@ pub fn audit_package(
     lookup_public_key(trust_store, signer_key_id),
     manifest_json,
   )
-  if not(sig_result.signature_ok) {
+  if !sig_result.signature_ok {
     for i = 0; i < sig_result.errors.length(); i = i + 1 {
       errors.push(sig_result.errors[i])
     }

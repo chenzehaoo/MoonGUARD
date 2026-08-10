@@ -1,9 +1,10 @@
 import {
   "chenzehaoo/moon_guard/lib/manifest",
+  "chenzehaoo/moon_guard/lib/fs",
 }
 
 options(
   name: "moon_guard/trust",
   version: "0.1.0",
-  description: "Trusted key store with JSON and PEM persistence (RFC 7468). 支持 JSON 与 PEM（RFC 7468）持久化的可信密钥库",
+  description: "Trusted key store with JSON, PEM (RFC 7468), and on-disk file persistence. 支持 JSON、PEM（RFC 7468）与磁盘文件持久化的可信密钥库",
 )

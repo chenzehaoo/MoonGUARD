@@ -70,25 +70,25 @@ fn rotr(x : UInt, n : Int) -> UInt {
 }
 
 ///|
-/// SHA-256 Σ0 function
+/// SHA-256 危0 function
 fn sigma0(x : UInt) -> UInt {
   rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22)
 }
 
 ///|
-/// SHA-256 Σ1 function
+/// SHA-256 危1 function
 fn sigma1(x : UInt) -> UInt {
   rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25)
 }
 
 ///|
-/// SHA-256 σ0 function (message schedule)
+/// SHA-256 蟽0 function (message schedule)
 fn small_sigma0(x : UInt) -> UInt {
   rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3)
 }
 
 ///|
-/// SHA-256 σ1 function (message schedule)
+/// SHA-256 蟽1 function (message schedule)
 fn small_sigma1(x : UInt) -> UInt {
   rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10)
 }
@@ -361,6 +361,218 @@ pub fn manifest_to_json(manifest : Manifest) -> String {
   }
   json = json + "  ]\n}"
   json
+}
+
+///|
+/// Parse a `manifest_to_json` document back into a `Manifest`. Returns
+/// `None` when the document is malformed so the caller can fall back to a
+/// freshly generated manifest. This is what lets the CLI audit an existing
+/// on-disk `manifest.json` instead of only freshly generated ones.
+pub fn manifest_from_json(json : String) -> Manifest? {
+  let version = match find_string_field(json, "version") {
+    Some(s) => s
+    None => "1.0.0"
+  }
+  let package_name = match find_string_field(json, "package_name") {
+    Some(s) => s
+    None => return None
+  }
+  let package_version = match find_string_field(json, "package_version") {
+    Some(s) => s
+    None => return None
+  }
+  let total_files = match find_json_int(json, "total_files") {
+    Some(n) => n
+    None => 0
+  }
+  let total_size = match find_json_int(json, "total_size") {
+    Some(n) => n
+    None => 0
+  }
+  let files : Array[FileHash] = []
+  let file_entries = match find_json_array(json, "files") {
+    Some(a) => a
+    None => []
+  }
+  for i = 0; i < file_entries.length(); i = i + 1 {
+    let e = file_entries[i]
+    let path = match find_string_field(e, "path") {
+      Some(s) => s
+      None => return None
+    }
+    let hash = match find_string_field(e, "hash") {
+      Some(s) => s
+      None => return None
+    }
+    let size = match find_json_int(e, "size") {
+      Some(n) => n
+      None => 0
+    }
+    files.push(FileHash::{ path, hash, size })
+  }
+  Some(Manifest::{
+    version,
+    package_name,
+    package_version,
+    total_files,
+    total_size,
+    created_at: "2025-01-01",
+    files,
+  })
+}
+
+///|
+/// Locate the index of `needle` inside `haystack`, or `-1` when absent.
+fn index_of(haystack : String, needle : String) -> Int {
+  if needle.length() == 0 || needle.length() > haystack.length() {
+    return -1
+  }
+  let mut i = 0
+  while i <= haystack.length() - needle.length() {
+    let mut j = 0
+    let mut match_ok = true
+    while j < needle.length() {
+      if haystack[i + j] != needle[j] {
+        match_ok = false
+        break
+      }
+      j = j + 1
+    }
+    if match_ok {
+      return i
+    }
+    i = i + 1
+  }
+  -1
+}
+
+///|
+/// Pull a quoted string field out of a flat JSON object (`"key": "value"`).
+fn find_string_field(json : String, key : String) -> String? {
+  let start = index_of(json, "\"" + key + "\":")
+  if start < 0 {
+    return None
+  }
+  // Skip the colon and any whitespace after it.
+  let needle = "\"" + key + "\":"
+  let mut i = start + needle.length()
+  while i < json.length() &&
+        (
+          json[i] == ' ' ||
+          json[i] == '\t' ||
+          json[i] == '\n' ||
+          json[i] == '\r'
+        ) {
+    i = i + 1
+  }
+  if i < json.length() && json[i] != '"' {
+    return None
+  }
+  i = i + 1
+  let buf = StringBuilder::new(size_hint=16)
+  while i < json.length() {
+    let c = json[i]
+    if c == '"' {
+      break
+    }
+    buf.write_char(c.unsafe_to_char())
+    i = i + 1
+  }
+  Some(buf.to_string())
+}
+
+///|
+/// Pull an integer field out of a flat JSON object (`"key": 123`).
+fn find_json_int(json : String, key : String) -> Int? {
+  let start = index_of(json, "\"" + key + "\":")
+  if start < 0 {
+    return None
+  }
+  let needle = "\"" + key + "\":"
+  let mut i = start + needle.length()
+  while i < json.length() &&
+        (
+          json[i] == ' ' ||
+          json[i] == '\t' ||
+          json[i] == '\n' ||
+          json[i] == '\r'
+        ) {
+    i = i + 1
+  }
+  let mut value = 0
+  let mut any = false
+  while i < json.length() {
+    let c = json[i].to_int()
+    if c >= 48 && c <= 57 {
+      value = value * 10 + (c - 48)
+      any = true
+    } else {
+      break
+    }
+    i = i + 1
+  }
+  if any {
+    Some(value)
+  } else {
+    None
+  }
+}
+
+///|
+
+///|
+/// Split a `"key": [ ... ]` array body into individual object strings.
+fn find_json_array(json : String, key : String) -> Array[String]? {
+  let start = index_of(json, "\"" + key + "\":")
+  if start < 0 {
+    return None
+  }
+  let needle = "\"" + key + "\":"
+  let mut i = start + needle.length()
+  // Skip whitespace up to the opening `[`.
+  while i < json.length() &&
+        (
+          json[i] == ' ' ||
+          json[i] == '\t' ||
+          json[i] == '\n' ||
+          json[i] == '\r'
+        ) {
+    i = i + 1
+  }
+  if i >= json.length() || json[i] != '[' {
+    return None
+  }
+  i = i + 1
+  let buf = StringBuilder::new(size_hint=16)
+  while i < json.length() {
+    let c = json[i]
+    if c == ']' {
+      break
+    }
+    buf.write_char(c.unsafe_to_char())
+    i = i + 1
+  }
+  let body = buf.to_string()
+  // Split the raw body into individual `{...}` objects by brace depth.
+  let result : Array[String] = []
+  let mut item_start = -1
+  let mut level = 0
+  for j = 0; j < body.length(); j = j + 1 {
+    let c = body[j]
+    if c == '{' {
+      if item_start < 0 {
+        item_start = j
+      }
+      level = level + 1
+    } else if c == '}' {
+      level = level - 1
+      if level == 0 && item_start >= 0 {
+        result.push(slice_chars_(body, item_start, j + 1))
+        item_start = -1
+      }
+    }
+  }
+  Some(result)
 }
 
 ///|

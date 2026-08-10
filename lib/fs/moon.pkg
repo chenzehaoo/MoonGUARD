@@ -1,0 +1,15 @@
+import {
+  "moonbitlang/core/bytes",
+  "moonbitlang/core/debug",
+}
+
+options(
+  name: "moon_guard/fs",
+  version: "0.1.0",
+  description: "Tiny filesystem portability layer for MoonGuard (read/write/list/stat). 为 MoonGuard 提供轻量文件系统访问层（读/写/列目录/检查状态），支持 wasm-gc 与 native 后端",
+  "native-stub": [ "fs_native.c" ],
+  targets: {
+    "fs_wasm.mbt": [ "wasm", "wasm-gc" ],
+    "fs_native.mbt": [ "native", "llvm" ],
+  },
+)

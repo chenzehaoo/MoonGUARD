@@ -102,7 +102,7 @@ test "end-to-end tamper detection" {
       remediation: "Re-download package from a trusted source",
     })
   }
-  if not(verify_after_tamper.is_valid) {
+  if !verify_after_tamper.is_valid {
     report.add_finding({
       title: "Signature verification failed",
       description: "Manifest signature does not match signed content",

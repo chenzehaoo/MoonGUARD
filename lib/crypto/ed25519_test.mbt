@@ -56,7 +56,10 @@ test "scalar mult 2G" {
 ///|
 test "scalar mult 128bit" {
   let g = @crypto.base_point()
-  let s = @bigint.BigInt::from_hex("deadbeefcafebabe1234567890abcdef")
+  let s = @bigint.BigInt::from_string(
+    "deadbeefcafebabe1234567890abcdef",
+    radix=16,
+  )
   let result = @crypto.scalar_mult(s, g)
   let enc = @crypto.point_encode(result)
   let hex = bytes_to_hex(enc)
@@ -92,6 +95,86 @@ test "ed25519 verify rejects tampered message" {
   let sig = @crypto.sign("hello", kp)
   let invalid = @crypto.verify("world", sig, kp.public_key)
   inspect(invalid, content="false")
+}
+
+///|
+test "ed25519 verify rejects zero signature" {
+  let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
+  let kp = @crypto.generate_keypair(seed)
+  let zero = @crypto.Signature::{
+    r: bytes_to_hex(Array::make(32, b'\x00')),
+    s: bytes_to_hex(Array::make(32, b'\x00')),
+  }
+  let invalid = @crypto.verify("hello", zero, kp.public_key)
+  inspect(invalid, content="false")
+}
+
+///|
+test "ed25519 verify rejects s >= L malleability" {
+  // s = L (the group order) is out-of-range even before curve checks.
+  let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
+  let kp = @crypto.generate_keypair(seed)
+  let sig_r = "5866666666666666666666666666666666666666666666666666666666666666"
+  let sig_s = "0000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed"
+  let invalid = @crypto.verify(
+    "hello",
+    @crypto.Signature::{ r: sig_r, s: sig_s },
+    kp.public_key,
+  )
+  inspect(invalid, content="false")
+}
+
+///|
+test "ed25519 rejects small-order public key" {
+  // The identity / small-order encoding decodes but must never verify.
+  let identity_pk = "0100000000000000000000000000000000000000000000000000000000000000"
+  let msg = "x"
+  let sig = @crypto.Signature::{
+    r: "5866666666666666666666666666666666666666666666666666666666666666",
+    s: "0000000000000000000000000000000000000000000000000000000000000000",
+  }
+  let invalid = @crypto.verify(msg, sig, identity_pk)
+  inspect(invalid, content="false")
+}
+
+///|
+test "ed25519 wraps unicode messages" {
+  let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
+  let kp = @crypto.generate_keypair(seed)
+  let msg = "包供应链安全 \u{4f60}\u{597d} 🚀"
+  let sig = @crypto.sign(msg, kp)
+  inspect(@crypto.verify(msg, sig, kp.public_key), content="true")
+  inspect(@crypto.verify(msg + "x", sig, kp.public_key), content="false")
+}
+
+///|
+test "ed25519 empty message roundtrip" {
+  let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
+  let kp = @crypto.generate_keypair(seed)
+  let sig = @crypto.sign("", kp)
+  inspect(@crypto.verify("", sig, kp.public_key), content="true")
+}
+
+///|
+test "malformed hex decomposes without crashing" {
+  // Odd-length hex, non-hex characters, and empty strings must all be
+  // handled defensively rather than panicking.
+  let odd = @crypto.hex_to_bytes("abc")
+  inspect(odd.length(), content="1")
+  let nonhex = @crypto.hex_to_bytes("zz")
+  // Unknown chars decode as zero, but the routine must not throw.
+  inspect(nonhex.length(), content="1")
+  let empty = @crypto.hex_to_bytes("")
+  inspect(empty.length(), content="0")
+  // A 31-byte signature key (odd) must fail verification cleanly.
+  let kp = @crypto.generate_keypair(
+    "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+  )
+  let short = @crypto.Signature::{
+    r: bytes_to_hex(Array::make(32, b'\x01')),
+    s: bytes_to_hex(Array::make(31, b'\x02')),
+  }
+  inspect(@crypto.verify("msg", short, kp.public_key), content="false")
 }
 
 ///|

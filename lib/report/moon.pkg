@@ -1,3 +1,7 @@
+import {
+  "moonbitlang/core/debug",
+}
+
 options(
   name: "moon_guard/report",
   version: "0.1.0",

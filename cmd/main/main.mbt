@@ -139,7 +139,9 @@ fn cmd_trust(args : Array[String]) -> Unit {
     println("Usage: moon_guard trust <add|list|remove> [args]")
     return
   }
-  let store = @trust.TrustStore::new()
+  // Load the persisted trust store (cross-process) instead of starting
+  // from an empty in-memory store each invocation.
+  let store = load_trust_store()
   match args[2] {
     "add" => {
       if args.length() < 6 {
@@ -164,9 +166,13 @@ fn cmd_trust(args : Array[String]) -> Unit {
           trust_level_name(level) +
           ")",
         )
-        // Echo the resulting PEM so operators can paste it elsewhere.
         println("PEM:")
         println(@trust.public_key_to_pem(pubkey))
+        if save_trust_store(store) {
+          println("Trust store saved to: " + trust_store_path())
+        } else {
+          println("Warning: failed to persist trust store")
+        }
       } else {
         println(
           "Failed to add key (invalid format, duplicate, or missing required argument)",
@@ -198,12 +204,38 @@ fn cmd_trust(args : Array[String]) -> Unit {
       }
       if store.remove_key(args[3]) {
         println("Key removed: " + args[3])
+        if save_trust_store(store) {
+          println("Trust store saved to: " + trust_store_path())
+        } else {
+          println("Warning: failed to persist trust store")
+        }
       } else {
         println("Key not found: " + args[3])
       }
     }
     _ => println("Unknown trust subcommand: " + args[2])
   }
+}
+
+///|
+/// Path of the persistent cross-process trust store file.
+fn trust_store_path() -> String {
+  "moon_guard_trust.json"
+}
+
+///|
+/// Load the trust store from disk, or start fresh when the file is missing.
+fn load_trust_store() -> @trust.TrustStore {
+  let stored = @trust.load_store_from_file(trust_store_path())
+  match stored {
+    Some(s) => s
+    None => @trust.TrustStore::new()
+  }
+}
+
+///|
+fn save_trust_store(store : @trust.TrustStore) -> Bool {
+  store.save_to_file(trust_store_path())
 }
 
 ///|
@@ -246,14 +278,24 @@ fn cmd_audit(args : Array[String]) -> Unit {
   let kp = @crypto.generate_keypair(seed)
   let sig = @crypto.sign(pkg_name, kp)
   let sig_hex = @crypto.signature_to_hex(sig)
-  let entries = parse_file_entries(args, 4)
+  // Real directory scan: when a directory argument is given, walk it and
+  // hash the actual files instead of using synthetic path:content pairs.
+  let dir = if args.length() > 4 { args[4] } else { "" }
+  let entries = if dir.length() > 0 && @fs.path_exists(dir) {
+    let files = @fs.walk(dir) catch { _ => [] }
+    scan_files_to_entries(dir, files)
+  } else {
+    parse_file_entries(args, 4)
+  }
   let m = @manifest.generate_manifest(pkg_name, pkg_ver, entries)
   report.file_count = m.total_files
-  // 1. Signature check.
-  let vr = @verify.verify_package(pkg_name, sig_hex, kp.public_key, pkg_name)
-  report.signature_verified = vr.is_valid
-  // 2. Integrity check.
-  let mismatches = @manifest.verify_manifest(m, entries)
+  // Read an existing manifest JSON when present on disk so we audit what is
+  // actually shipped, not what was just generated.
+  let existing_manifest = read_existing_manifest(dir, pkg_name, pkg_ver)
+  let mismatches = match existing_manifest {
+    Some(existing) => @manifest.verify_manifest(existing, entries)
+    None => @manifest.verify_manifest(m, entries)
+  }
   if mismatches.length() > 0 {
     report.add_finding(@report.Finding::{
       title: "File integrity check failed",
@@ -261,6 +303,27 @@ fn cmd_audit(args : Array[String]) -> Unit {
       risk_level: @report.RiskLevel::Critical,
       remediation: "Re-download package from trusted source",
     })
+  }
+  // 1. Signature check.
+  let vr = @verify.verify_package(pkg_name, sig_hex, kp.public_key, pkg_name)
+  report.signature_verified = vr.is_valid
+  // 2. Signature file check: when a *.sig file ships with the package, read
+  //    it and verify against the on-disk public key if present.
+  let sig_file = find_sig_file(dir)
+  match sig_file {
+    Some(sig_name) => {
+      let sig_text = read_sig_text(sig_name)
+      let vr2 = verify_signature_from_text(sig_text, pkg_name, kp.public_key)
+      if !vr2 {
+        report.add_finding(@report.Finding::{
+          title: "Shipped signature does not verify",
+          description: "The .sig file in the package is invalid for this content",
+          risk_level: @report.RiskLevel::Critical,
+          remediation: "Obtain a valid signature from the package author",
+        })
+      }
+    }
+    None => ()
   }
   // 3. Typosquat check (strict mode).
   let known = [
@@ -277,7 +340,7 @@ fn cmd_audit(args : Array[String]) -> Unit {
     })
   }
   // 4. Wrap-up: summarize signature failure if any.
-  if not(report.signature_verified) {
+  if !report.signature_verified {
     report.add_finding(@report.Finding::{
       title: "Signature verification failed",
       description: "Package signature could not be verified",
@@ -288,10 +351,95 @@ fn cmd_audit(args : Array[String]) -> Unit {
   report.recompute_score()
   println(report.summary())
   println("--- Manifest ---")
-  println(@manifest.manifest_summary(m))
+  match existing_manifest {
+    Some(_) => println("(audited against on-disk manifest)")
+    None => println(@manifest.manifest_summary(m))
+  }
   println("")
   println("--- JSON Report ---")
   println(@report.report_to_json(report))
+}
+
+///|
+/// Build `FileEntry` list by reading the actual file contents under `dir`.
+/// Paths recorded in the manifest are relative to `dir`.
+fn scan_files_to_entries(
+  dir : String,
+  files : Array[String],
+) -> Array[@manifest.FileEntry] {
+  let entries : Array[@manifest.FileEntry] = []
+  for i = 0; i < files.length(); i = i + 1 {
+    let rel = files[i]
+    // Skip the manifest / signature themselves so they are not hashed into
+    // the manifest they verify.
+    if rel == "manifest.json" || rel.has_suffix(".sig") {
+      continue
+    }
+    let full = dir + "/" + rel
+    let content = @fs.read_file_to_string(full) catch { _ => continue }
+    entries.push(@manifest.FileEntry::{ path: rel, content })
+  }
+  entries
+}
+
+///|
+/// Load `manifest.json` from `dir` (when present) as the manifest to verify
+/// against. Falls back to `None` so callers use a freshly generated one.
+fn read_existing_manifest(
+  dir : String,
+  _pkg : String,
+  _ver : String,
+) -> @manifest.Manifest? {
+  if dir.length() == 0 {
+    return None
+  }
+  let path = dir + "/manifest.json"
+  if !@fs.path_exists(path) {
+    return None
+  }
+  let text = @fs.read_file_to_string(path) catch { _ => return None }
+  @manifest.manifest_from_json(text)
+}
+
+///|
+/// Look for a `.sig` file directly inside `dir`, if any.
+fn find_sig_file(dir : String) -> String? {
+  if dir.length() == 0 {
+    return None
+  }
+  let files = @fs.read_dir(dir) catch { _ => return None }
+  for i = 0; i < files.length(); i = i + 1 {
+    if files[i].has_suffix(".sig") {
+      return Some(files[i])
+    }
+  }
+  None
+}
+
+///|
+/// Read a `.sig` file and re-verify the (signed) package name against it.
+fn read_sig_text(sig_file : String) -> String {
+  @fs.read_file_to_string(sig_file) catch {
+    _ => ""
+  }
+}
+
+///|
+/// Re-verify a signature read from a `.sig` file. The signature is expected
+/// to be a hex `r + s` blob; `sig_hex` may be that blob. Returns `false` when
+/// the file does not parse as a valid signature.
+fn verify_signature_from_text(
+  sig_hex : String,
+  msg : String,
+  pubkey : String,
+) -> Bool {
+  if sig_hex.length() != 128 {
+    return false
+  }
+  let sig_r = @manifest.take_chars_(sig_hex, 64)
+  let sig_s = @manifest.slice_chars_(sig_hex, 64, 128)
+  let sig = @crypto.Signature::{ r: sig_r, s: sig_s }
+  @crypto.verify(msg, sig, pubkey)
 }
 
 ///|
@@ -344,15 +492,27 @@ fn cmd_manifest_verify(args : Array[String]) -> Unit {
   let pkg = args[3]
   let ver = args[4]
   let entries = parse_file_entries(args, 5)
-  let m = @manifest.generate_manifest(pkg, ver, entries)
-  let mismatches = @manifest.verify_manifest(m, entries)
-  if mismatches.length() == 0 {
-    println("Manifest verification: PASS (all files intact)")
-  } else {
-    println("Manifest verification: FAIL")
-    for i = 0; i < mismatches.length(); i = i + 1 {
-      println("  mismatch: " + mismatches[i])
+  // Verify the given file contents against the manifest that shipped on disk
+  // (manifest.json in the current directory), not against a manifest generated
+  // from the same inputs — otherwise the check is trivially self-consistent
+  // and never fails.
+  let existing = read_existing_manifest(".", pkg, ver)
+  match existing {
+    Some(m) => {
+      let mismatches = @manifest.verify_manifest(m, entries)
+      if mismatches.length() == 0 {
+        println("Manifest verification: PASS (all files intact)")
+      } else {
+        println("Manifest verification: FAIL")
+        for i = 0; i < mismatches.length(); i = i + 1 {
+          println("  mismatch: " + mismatches[i])
+        }
+      }
     }
+    None =>
+      println(
+        "No manifest.json found in the current directory to verify against",
+      )
   }
 }
 

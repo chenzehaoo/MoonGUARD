@@ -1,6 +1,6 @@
 name = "chenzehaoo/moon_guard"
 
-version = "0.1.9"
+version = "0.1.10"
 
 description = "MoonGuard is a pure-MoonBit supply chain security toolchain providing Ed25519 package signing and verification, SHA-256 manifest integrity checks, JSON+PEM trusted key management, Levenshtein and homoglyph typosquat detection, CVSS-style cumulative risk scores, JSON security reports, and a `moon_guard` CLI with subcommands for keygen, sign, verify, trust, typosquat, manifest, hash, audit, and version. Includes a runnable end-to-end audit example at `examples/basic_audit`. MoonGuard 是用纯 MoonBit 实现的 MoonBit 包供应链安全工具链，提供 Ed25519 签名、SHA-256 清单、JSON+PEM 可信密钥管理、Levenshtein 与同形（homoglyph）双模式 typosquat 检测、CVSS 风格风险评分、JSON 安全报告与 9 子命令 CLI。"
 

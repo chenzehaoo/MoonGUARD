@@ -25,7 +25,7 @@ fn main {
 
 ///|
 fn print_version() -> Unit {
-  println("MoonGuard v0.1.9 / MoonGuard v0.1.9")
+  println("MoonGuard v0.1.10 / MoonGuard v0.1.10")
   println(
     "MoonBit supply chain security toolchain / MoonBit 供应链安全工具链",
   )

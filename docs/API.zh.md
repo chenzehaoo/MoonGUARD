@@ -9,6 +9,7 @@
 3. **分层无环依赖**：`lib/manifest` / `lib/crypto` / `lib/trust` 是基础层；`lib/verify` 是组合层；`lib/report` 是表达层。组合层只对基础层有依赖，模块之间无循环引用。
 4. **错误可见**：`trust_store_from_json` 等反序列化函数在格式错误时返回 `None`，不允许悄悄吞错。
 5. **可观测**：每个 lib 模块的 API 都配套单元测试、E2E 测试，公共副作用（如 PEM 输出）有显式函数 + JSON 双输出。
+6. **拒绝自验**：CLI `audit` 只基于外部 manifest、detached signature、公钥与 trust store 做验收式审计；关键证据缺失时输出失败报告，不会临时生成 manifest 再自验通过。
 
 ## 模块依赖图
 
@@ -41,6 +42,61 @@
                        │   (用户可见的复制模板)        │
                        └──────────────────────────────┘
 ```
+
+## 技术架构图
+
+```mermaid
+flowchart TD
+  subgraph inputs["外部审计证据"]
+    pkg["待审计包目录<br/>真实文件内容"]
+    manifest_json["manifest.json<br/>或 --manifest"]
+    sig["*.sig<br/>或 --signature"]
+    trust_json["moon_guard_trust.json<br/>或 --trust-store"]
+    pubkey["public_key.pem / .pub<br/>或 --pubkey，可选"]
+  end
+
+  subgraph core["MoonGuard 核心库"]
+    manifest["lib/manifest<br/>SHA-256<br/>generate / parse / verify"]
+    crypto["lib/crypto<br/>Ed25519<br/>sign / verify"]
+    trust["lib/trust<br/>TrustStore<br/>JSON + PEM"]
+    verify["lib/verify<br/>audit_package<br/>integrity + signature + trust"]
+    typo["lib/verify<br/>strict typosquat"]
+    report["lib/report<br/>SecurityReport<br/>risk score + JSON"]
+  end
+
+  cli["cmd/main<br/>moon_guard audit"]
+
+  cli --> pkg
+  cli --> manifest_json
+  cli --> sig
+  cli --> trust_json
+  cli --> pubkey
+  pkg --> manifest
+  manifest_json --> manifest
+  manifest --> verify
+  sig --> crypto
+  crypto --> verify
+  trust_json --> trust
+  pubkey --> trust
+  trust --> verify
+  pkg --> typo
+  verify --> report
+  typo --> report
+  report --> output["CLI 摘要 + JSON 报告"]
+```
+
+## CLI audit 证据流
+
+`moon_guard audit` 的定位是验收式审计，不再使用 demo key / demo signature：
+
+1. 从包目录读取真实文件，跳过 `manifest.json`、`.sig`、`.pem`、`.pub`、`moon_guard_trust.json` 等审计证据文件。
+2. 从 `--manifest` 或包目录 `manifest.json` 读取外部清单；不存在或解析失败时报告 `Manifest missing or unreadable`，整体 `FAIL`。
+3. 从 `--signature` 或包目录第一份 `.sig` 读取 detached signature；签名必须归一化为 128 字符 hex。
+4. 从 `--trust-store`、包目录 `moon_guard_trust.json` 或当前目录 `moon_guard_trust.json` 读取可信库。
+5. 通过 `--signer` 指定签名者 key id；若信任库只有一个 key，可自动推断，否则报告 signer ambiguous。
+6. 可选读取 `--pubkey` / `public_key.pem` / `.pub`，并与 trust store 中 signer 的公钥做一致性校验。
+7. `audit_package` 对外部 manifest JSON 做 Ed25519 验签，同时校验文件哈希和 signer 信任级别。
+8. `SecurityReport` 汇总完整性、签名、信任、typosquat 风险，输出人类可读摘要和 JSON。
 
 ## lib/manifest 详解
 
@@ -169,6 +225,8 @@ manifest_to_json ──► string ──► @crypto.sign
 3. **可信度**：根据 `trust_store.is_trusted(signer_key_id)` 决定 trust_status
 4. **`is_valid` 决定式**：`signature_ok && mismatches.empty() && trust_status == "trusted"`
 
+CLI 层在调用 `audit_package` 前负责外部证据读取和前置失败判断：没有可解析的 manifest、signature 或 trust store 时，不进入“新生成数据自验”的路径，而是把缺失证据写入 `SecurityReport`。
+
 ### Typosquat 检测策略
 
 | 模式 | 检测原理 |
@@ -259,7 +317,7 @@ moon run -- audit
 或者直接作为 CLI：
 
 ```bash
-moon run cmd/main -- audit my-package 1.0.0 "src/main.mbt:fn main { }"
+moon run cmd/main -- audit my-package 1.0.0 ./my-package --signer alice
 ```
 
 ## 扩展点

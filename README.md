@@ -9,7 +9,7 @@ MoonGuard is a pure-MoonBit supply chain security toolchain providing:
 - **Manifest integrity** — SHA-256 hashes over file contents (pure MoonBit implementation, no external crypto library).
 - **Ed25519 signatures** — RFC 8032 sign/verify with field arithmetic and SHA-512, also pure MoonBit.
 - **Trusted key store** — in-memory store with `Full` / `Partial` / `Untrusted` levels, JSON and PEM (RFC 7468) persistence.
-- **Audit pipeline** — `verify_package` ties manifest integrity, signature verification and trust lookup into one call.
+- **Audit pipeline** — `verify_package` / `audit_package` tie manifest integrity, signature verification and trust lookup into one call; the CLI `audit` command now audits real external manifest, signature and trust-store evidence and fails when critical evidence is missing.
 - **Typosquat detection** — Levenshtein distance plus strict mode that also catches look-alike substitutions (`1odash` for `lodash`, `Iodash` etc.) and the `summary` aggregator for batch reports.
 - **Security reports** — `SecurityReport` with `Critical` / `High` / `Medium` / `Low` / `Info` findings, cumulative 0–10 risk score, JSON export.
 - **CLI** — `moon_guard` executable with subcommands for `keygen` / `sign` / `verify` / `trust` / `typosquat` / `manifest` / `hash` / `audit` / `version`.
@@ -26,9 +26,45 @@ moon_guard/
 │   └── report/       # JSON security report with risk score
 ├── cmd/main/         # CLI entry point (moon_guard)
 ├── examples/         # Runnable usage examples (see examples/basic_audit)
-├── moon.mod.json     # Module manifest
+├── moon.mod          # Module manifest
 ├── README.md         # This file
 └── LICENSE           # Apache-2.0
+```
+
+## Technical Architecture
+
+```mermaid
+flowchart TD
+  package["Package directory / path:content input"]
+  manifest_file["External manifest.json / --manifest"]
+  sig_file["External .sig / --signature"]
+  trust_file["moon_guard_trust.json / --trust-store"]
+  pubkey_file["Optional public_key.pem / --pubkey"]
+
+  manifest["lib/manifest<br/>SHA-256 + Manifest"]
+  crypto["lib/crypto<br/>Ed25519 + SHA-512"]
+  trust["lib/trust<br/>TrustStore + PEM/JSON"]
+  verify["lib/verify<br/>integrity + signature + trust"]
+  typo["Strict typosquat detector"]
+  report["lib/report<br/>risk score + JSON"]
+  cli["cmd/main<br/>moon_guard audit"]
+
+  package --> manifest
+  manifest_file --> manifest
+  manifest --> verify
+  sig_file --> crypto
+  crypto --> verify
+  trust_file --> trust
+  pubkey_file --> trust
+  trust --> verify
+  package --> typo
+  verify --> report
+  typo --> report
+  cli --> manifest_file
+  cli --> sig_file
+  cli --> trust_file
+  cli --> pubkey_file
+  cli --> report
 ```
 
 ## Library API
@@ -113,7 +149,8 @@ moon_guard typosquat <name> <known...>         Strict typosquat check (homoglyph
 moon_guard manifest gen <pkg> <ver> [f:c...]   Generate manifest from path:content pairs.
 moon_guard manifest verify <pkg> <ver> [f:c]   Verify a manifest against inputs.
 moon_guard hash <content>                      Compute SHA-256 hash.
-moon_guard audit <pkg> <ver> [f:c...]          Run full audit + emit JSON report.
+moon_guard audit <pkg> <ver> <dir|f:c...> [--manifest <file>] [--signature <file|hex>] [--trust-store <file>] [--signer <key_id>] [--pubkey <file|hex>]
+                                               Audit real external manifest/signature/trust evidence and emit JSON report.
 moon_guard version                             Print version and exit.
 moon_guard help                                Print usage.
 ```
@@ -130,10 +167,8 @@ moon run cmd/main -- hash "Hello, MoonBit"
 # 3. Sign a UTF-8 message.
 moon run cmd/main -- sign "Hello, MoonBit" 9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60
 
-# 4. Run a full audit on a synthetic package (with two files).
-moon run cmd/main -- audit demo-pkg 1.0.0 \
-  "src/main.mbt:fn main { println(\"hello\") }" \
-  "src/lib.mbt:pub fn add(a: Int, b: Int) -> Int { a + b }"
+# 4. Run a full audit on a directory that ships manifest.json, *.sig and moon_guard_trust.json.
+moon run cmd/main -- audit demo-pkg 1.0.0 ./demo-pkg --signer alice
 
 # 5. Detect typosquats.
 moon run cmd/main -- typosquat 1odash lodash react express
@@ -155,7 +190,7 @@ packages.
 
 | Command | Purpose |
 |---------|---------|
-| `moon test` | Run the full test suite (81+ tests across 5 modules + CLI). |
+| `moon test` | Run the full test suite (97+ tests across 5 modules + CLI). |
 | `moon test --target wasm` | Force the wasm backend (matches the CI matrix). |
 | `moon check` | Lint and type-check. |
 | `moon check --deny-warn` | Fail the build on any warning. |
@@ -164,9 +199,9 @@ packages.
 | `moon info` | Regenerate the `.mbti` interface files. |
 | `moon coverage analyze` | Print uncovered code paths. |
 
-CI runs `moon fmt --check`, `moon info`, `moon check --deny-warn`, and
-`moon test` across `ubuntu-latest` / `macos-latest` / `windows-latest`
-for both `wasm` and `native` backends.
+CI runs `moon fmt --check`, `moon info`, `moon check --deny-warn`,
+`moon build --deny-warn`, and `moon test` across `ubuntu-latest` /
+`macos-latest` / `windows-latest` for both `wasm` and `native` backends.
 
 ## Publishing to mooncakes.io
 
@@ -175,7 +210,7 @@ moon login     # one-time: paste your mooncakes.io token
 moon publish   # uploads the module as chenzehaoo/moon_guard
 ```
 
-`moon.mod.json` carries the canonical module name, repository URL,
+`moon.mod` carries the canonical module name, repository URL,
 summary, description, keywords, and supported platforms (`native`,
 `wasm`, `wasm-gc`) — these flow straight into the mooncakes.io package
 page.
@@ -194,7 +229,7 @@ matrix:
 | windows-latest | wasm |
 
 Each cell runs `moon fmt --check`, `moon info`, `moon check --deny-warn`,
-and `moon test`.
+`moon build --deny-warn`, and `moon test`.
 
 ## Dependencies
 

@@ -25,7 +25,7 @@ fn main {
 
 ///|
 fn print_version() -> Unit {
-  println("MoonGuard v0.1.10 / MoonGuard v0.1.10")
+  println("MoonGuard v0.1.11 / MoonGuard v0.1.11")
   println(
     "MoonBit supply chain security toolchain / MoonBit 供应链安全工具链",
   )
@@ -74,7 +74,7 @@ fn print_usage() -> Unit {
     "  hash <content>                     Compute SHA-256 hash / 计算 SHA-256 哈希",
   )
   println(
-    "  audit <pkg> <ver> [f:c...]         Run full security audit + report / 运行完整安全审计并输出报告",
+    "  audit <pkg> <ver> <dir|f:c...> [--signature <file|hex>] [--trust-store <file>] [--signer <key_id>] [--pubkey <file|hex>]  Run audit against external manifest/signature/trust evidence / 基于外部清单、签名和信任库审计",
   )
   println(
     "  version                            Print version and exit / 打印版本并退出",
@@ -274,86 +274,138 @@ fn cmd_audit(args : Array[String]) -> Unit {
   let pkg_name = if args.length() > 2 { args[2] } else { "demo-package" }
   let pkg_ver = if args.length() > 3 { args[3] } else { "1.0.0" }
   let report = @report.SecurityReport::new(pkg_name, pkg_ver)
-  let seed = demo_seed()
-  let kp = @crypto.generate_keypair(seed)
-  let sig = @crypto.sign(pkg_name, kp)
-  let sig_hex = @crypto.signature_to_hex(sig)
-  // Real directory scan: when a directory argument is given, walk it and
-  // hash the actual files instead of using synthetic path:content pairs.
-  let dir = if args.length() > 4 { args[4] } else { "" }
-  let entries = if dir.length() > 0 && @fs.path_exists(dir) {
+  let dir = audit_dir_arg(args)
+  let entries = if dir.length() > 0 {
     let files = @fs.walk(dir) catch { _ => [] }
     scan_files_to_entries(dir, files)
   } else {
     parse_file_entries(args, 4)
   }
-  let m = @manifest.generate_manifest(pkg_name, pkg_ver, entries)
-  report.file_count = m.total_files
-  // Read an existing manifest JSON when present on disk so we audit what is
-  // actually shipped, not what was just generated.
-  let existing_manifest = read_existing_manifest(dir, pkg_name, pkg_ver)
-  let mismatches = match existing_manifest {
-    Some(existing) => @manifest.verify_manifest(existing, entries)
-    None => @manifest.verify_manifest(m, entries)
-  }
-  if mismatches.length() > 0 {
-    report.add_finding(@report.Finding::{
-      title: "File integrity check failed",
-      description: mismatches.length().to_string() + " file(s) modified",
-      risk_level: @report.RiskLevel::Critical,
-      remediation: "Re-download package from trusted source",
-    })
-  }
-  // 1. Signature check.
-  let vr = @verify.verify_package(pkg_name, sig_hex, kp.public_key, pkg_name)
-  report.signature_verified = vr.is_valid
-  // 2. Signature file check: when a *.sig file ships with the package, read
-  //    it and verify against the on-disk public key if present.
-  let sig_file = find_sig_file(dir)
-  match sig_file {
-    Some(sig_name) => {
-      let sig_text = read_sig_text(sig_name)
-      let vr2 = verify_signature_from_text(sig_text, pkg_name, kp.public_key)
-      if !vr2 {
+  let manifest = read_audit_manifest(args, dir)
+  match manifest {
+    None => {
+      report.add_finding(@report.Finding::{
+        title: "Manifest missing or unreadable",
+        description: "Audit requires an existing manifest.json or --manifest file",
+        risk_level: @report.RiskLevel::Critical,
+        remediation: "Generate and ship a manifest before auditing the package",
+      })
+      report.recompute_score()
+      print_audit_report(report, None)
+      return
+    }
+    Some(m) => {
+      report.file_count = m.total_files
+      let mismatches = @manifest.verify_manifest(m, entries)
+      if mismatches.length() > 0 {
         report.add_finding(@report.Finding::{
-          title: "Shipped signature does not verify",
-          description: "The .sig file in the package is invalid for this content",
+          title: "File integrity check failed",
+          description: mismatches.length().to_string() + " file(s) modified",
           risk_level: @report.RiskLevel::Critical,
-          remediation: "Obtain a valid signature from the package author",
+          remediation: "Re-download package from trusted source",
         })
       }
+      let sig_hex = read_audit_signature(args, dir)
+      match sig_hex {
+        None =>
+          report.add_finding(@report.Finding::{
+            title: "External signature missing or invalid",
+            description: "Audit requires a 128-character signature hex blob from --signature or a .sig file",
+            risk_level: @report.RiskLevel::Critical,
+            remediation: "Provide the package author's detached signature",
+          })
+        Some(sig) => {
+          let store = load_audit_trust_store(args, dir)
+          match store {
+            None =>
+              report.add_finding(@report.Finding::{
+                title: "Trust store missing or unreadable",
+                description: "Audit requires a valid trust store from --trust-store, package directory, or working directory",
+                risk_level: @report.RiskLevel::High,
+                remediation: "Provide a trust store containing the signer's public key",
+              })
+            Some(ts) => {
+              let signer = audit_signer_key(args, ts)
+              match signer {
+                None =>
+                  report.add_finding(@report.Finding::{
+                    title: "Signer key id is ambiguous",
+                    description: "Use --signer when the trust store is empty or contains multiple keys",
+                    risk_level: @report.RiskLevel::High,
+                    remediation: "Pass --signer <key_id> for the package author",
+                  })
+                Some(key_id) => {
+                  check_external_public_key(args, dir, ts, key_id, report)
+                  let vr = @verify.audit_package(
+                    pkg_name, pkg_ver, m, entries, sig, key_id, ts,
+                  )
+                  report.signature_verified = vr.signature_ok
+                  if !vr.signature_ok {
+                    report.add_finding(@report.Finding::{
+                      title: "Signature verification failed",
+                      description: "Package manifest signature could not be verified with the trusted public key",
+                      risk_level: @report.RiskLevel::Critical,
+                      remediation: "Obtain a valid signature from the package author",
+                    })
+                  }
+                  if vr.trust_status == "untrusted" {
+                    report.add_finding(@report.Finding::{
+                      title: "Signer is explicitly untrusted",
+                      description: "Signer key " +
+                      key_id +
+                      " is marked Untrusted",
+                      risk_level: @report.RiskLevel::Critical,
+                      remediation: "Use a trusted signer key",
+                    })
+                  } else if vr.trust_status == "unknown" {
+                    report.add_finding(@report.Finding::{
+                      title: "Signer is not trusted",
+                      description: "Signer key " +
+                      key_id +
+                      " is not present in the trust store",
+                      risk_level: @report.RiskLevel::High,
+                      remediation: "Add the signer key to the trust store after out-of-band verification",
+                    })
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      // Typosquat check (strict mode).
+      let known = [
+        "lodash", "express", "react", "angular", "moment", "axios", "moonguard",
+      ]
+      let typo_results = @verify.detect_typosquat_strict(pkg_name, known)
+      for i = 0; i < typo_results.length(); i = i + 1 {
+        report.typosquat_suspects.push(typo_results[i].similar_to)
+        report.add_finding(@report.Finding::{
+          title: "Typosquat risk: similar to " + typo_results[i].similar_to,
+          description: "Attack type: " + typo_results[i].attack_type,
+          risk_level: @report.RiskLevel::High,
+          remediation: "Verify package name is correct",
+        })
+      }
+      report.recompute_score()
+      print_audit_report(report, Some(m))
     }
-    None => ()
   }
-  // 3. Typosquat check (strict mode).
-  let known = [
-    "lodash", "express", "react", "angular", "moment", "axios", "moonguard",
-  ]
-  let typo_results = @verify.detect_typosquat_strict(pkg_name, known)
-  for i = 0; i < typo_results.length(); i = i + 1 {
-    report.typosquat_suspects.push(typo_results[i].similar_to)
-    report.add_finding(@report.Finding::{
-      title: "Typosquat risk: similar to " + typo_results[i].similar_to,
-      description: "Attack type: " + typo_results[i].attack_type,
-      risk_level: @report.RiskLevel::High,
-      remediation: "Verify package name is correct",
-    })
-  }
-  // 4. Wrap-up: summarize signature failure if any.
-  if !report.signature_verified {
-    report.add_finding(@report.Finding::{
-      title: "Signature verification failed",
-      description: "Package signature could not be verified",
-      risk_level: @report.RiskLevel::Critical,
-      remediation: "Obtain valid signature from package author",
-    })
-  }
-  report.recompute_score()
+}
+
+///|
+fn print_audit_report(
+  report : @report.SecurityReport,
+  manifest : @manifest.Manifest?,
+) -> Unit {
   println(report.summary())
   println("--- Manifest ---")
-  match existing_manifest {
-    Some(_) => println("(audited against on-disk manifest)")
-    None => println(@manifest.manifest_summary(m))
+  match manifest {
+    Some(m) => {
+      println("(audited against external manifest)")
+      println(@manifest.manifest_summary(m))
+    }
+    None => println("(no external manifest available)")
   }
   println("")
   println("--- JSON Report ---")
@@ -372,7 +424,11 @@ fn scan_files_to_entries(
     let rel = files[i]
     // Skip the manifest / signature themselves so they are not hashed into
     // the manifest they verify.
-    if rel == "manifest.json" || rel.has_suffix(".sig") {
+    if rel == "manifest.json" ||
+      rel == "moon_guard_trust.json" ||
+      rel.has_suffix(".sig") ||
+      rel.has_suffix(".pem") ||
+      rel.has_suffix(".pub") {
       continue
     }
     let full = dir + "/" + rel
@@ -402,7 +458,28 @@ fn read_existing_manifest(
 }
 
 ///|
-/// Look for a `.sig` file directly inside `dir`, if any.
+fn read_manifest_file(path : String) -> @manifest.Manifest? {
+  if !@fs.path_exists(path) {
+    return None
+  }
+  let text = @fs.read_file_to_string(path) catch { _ => return None }
+  @manifest.manifest_from_json(text)
+}
+
+///|
+fn read_audit_manifest(
+  args : Array[String],
+  dir : String,
+) -> @manifest.Manifest? {
+  match arg_value(args, "--manifest") {
+    Some(path) => read_manifest_file(path)
+    None => read_existing_manifest(dir, "", "")
+  }
+}
+
+///|
+/// Look for a `.sig` file directly inside `dir`, if any. The returned path
+/// includes `dir`, so callers can read the file from outside the cwd.
 fn find_sig_file(dir : String) -> String? {
   if dir.length() == 0 {
     return None
@@ -410,36 +487,197 @@ fn find_sig_file(dir : String) -> String? {
   let files = @fs.read_dir(dir) catch { _ => return None }
   for i = 0; i < files.length(); i = i + 1 {
     if files[i].has_suffix(".sig") {
-      return Some(files[i])
+      return Some(join_path(dir, files[i]))
     }
   }
   None
 }
 
 ///|
-/// Read a `.sig` file and re-verify the (signed) package name against it.
-fn read_sig_text(sig_file : String) -> String {
-  @fs.read_file_to_string(sig_file) catch {
-    _ => ""
+fn read_audit_signature(args : Array[String], dir : String) -> String? {
+  match arg_value(args, "--signature") {
+    Some(value) => read_signature_input(value)
+    None =>
+      match find_sig_file(dir) {
+        Some(path) => read_signature_input(path)
+        None => None
+      }
   }
 }
 
 ///|
-/// Re-verify a signature read from a `.sig` file. The signature is expected
-/// to be a hex `r + s` blob; `sig_hex` may be that blob. Returns `false` when
-/// the file does not parse as a valid signature.
-fn verify_signature_from_text(
-  sig_hex : String,
-  msg : String,
-  pubkey : String,
-) -> Bool {
-  if sig_hex.length() != 128 {
-    return false
+fn read_signature_input(input : String) -> String? {
+  let text = if @fs.path_exists(input) {
+    @fs.read_file_to_string(input) catch {
+      _ => return None
+    }
+  } else {
+    input
   }
-  let sig_r = @manifest.take_chars_(sig_hex, 64)
-  let sig_s = @manifest.slice_chars_(sig_hex, 64, 128)
-  let sig = @crypto.Signature::{ r: sig_r, s: sig_s }
-  @crypto.verify(msg, sig, pubkey)
+  normalize_hex(text, 128)
+}
+
+///|
+fn load_audit_trust_store(
+  args : Array[String],
+  dir : String,
+) -> @trust.TrustStore? {
+  match arg_value(args, "--trust-store") {
+    Some(path) => @trust.load_store_from_file(path)
+    None => {
+      if dir.length() > 0 {
+        let store_path = join_path(dir, trust_store_path())
+        if @fs.path_exists(store_path) {
+          return @trust.load_store_from_file(store_path)
+        }
+      }
+      @trust.load_store_from_file(trust_store_path())
+    }
+  }
+}
+
+///|
+fn audit_signer_key(args : Array[String], store : @trust.TrustStore) -> String? {
+  match arg_value(args, "--signer") {
+    Some(s) => Some(s)
+    None => {
+      let keys = store.list_all()
+      if keys.length() == 1 {
+        Some(keys[0].key_id)
+      } else {
+        None
+      }
+    }
+  }
+}
+
+///|
+fn check_external_public_key(
+  args : Array[String],
+  dir : String,
+  store : @trust.TrustStore,
+  signer : String,
+  report : @report.SecurityReport,
+) -> Unit {
+  let external_key = read_audit_public_key(args, dir)
+  match external_key {
+    None => ()
+    Some(pubkey) =>
+      match store.get_key(signer) {
+        Some(k) =>
+          if k.public_key != pubkey {
+            report.add_finding(@report.Finding::{
+              title: "Public key does not match trust store",
+              description: "The external public key differs from trusted signer " +
+              signer,
+              risk_level: @report.RiskLevel::Critical,
+              remediation: "Verify the signer's public key out of band and update the trust store",
+            })
+          }
+        None => ()
+      }
+  }
+}
+
+///|
+fn read_audit_public_key(args : Array[String], dir : String) -> String? {
+  match arg_value(args, "--pubkey") {
+    Some(value) => read_public_key_input(value)
+    None => {
+      if dir.length() == 0 {
+        return None
+      }
+      let candidates = [
+        "public_key.pem", "moon_guard_public.pem", "moonguard_public.pem", "public_key.pub",
+        "moon_guard.pub",
+      ]
+      for i = 0; i < candidates.length(); i = i + 1 {
+        let path = join_path(dir, candidates[i])
+        if @fs.path_exists(path) {
+          return read_public_key_input(path)
+        }
+      }
+      None
+    }
+  }
+}
+
+///|
+fn read_public_key_input(input : String) -> String? {
+  let text = if @fs.path_exists(input) {
+    @fs.read_file_to_string(input) catch {
+      _ => return None
+    }
+  } else {
+    input
+  }
+  match @trust.public_key_from_pem(text) {
+    Some(pubkey) => Some(pubkey)
+    None => normalize_hex(text, 64)
+  }
+}
+
+///|
+fn normalize_hex(text : String, expected_len : Int) -> String? {
+  let buf = StringBuilder::new(size_hint=expected_len)
+  for i = 0; i < text.length(); i = i + 1 {
+    let c = text[i]
+    if c == ' ' || c == '\n' || c == '\r' || c == '\t' {
+      continue
+    }
+    if c >= 48 && c <= 57 {
+      buf.write_char(c.unsafe_to_char())
+    } else if c >= 97 && c <= 102 {
+      buf.write_char(c.unsafe_to_char())
+    } else if c >= 65 && c <= 70 {
+      buf.write_char((c + 32).unsafe_to_char())
+    } else {
+      return None
+    }
+  }
+  let value = buf.to_string()
+  if value.length() == expected_len {
+    Some(value)
+  } else {
+    None
+  }
+}
+
+///|
+fn arg_value(args : Array[String], name : String) -> String? {
+  for i = 0; i < args.length() - 1; i = i + 1 {
+    if args[i] == name {
+      return Some(args[i + 1])
+    }
+  }
+  None
+}
+
+///|
+fn audit_dir_arg(args : Array[String]) -> String {
+  if args.length() <= 4 {
+    return ""
+  }
+  let candidate = args[4]
+  if candidate.has_prefix("--") {
+    return ""
+  }
+  if @fs.path_exists(candidate) {
+    let is_dir = @fs.is_dir(candidate) catch { _ => false }
+    if is_dir {
+      return candidate
+    }
+  }
+  ""
+}
+
+///|
+fn join_path(dir : String, name : String) -> String {
+  if dir.has_suffix("/") || dir.has_suffix("\\") {
+    dir + name
+  } else {
+    dir + "/" + name
+  }
 }
 
 ///|

@@ -73,3 +73,131 @@ test "trust_level_name round-trips through parse_trust_level" {
   inspect(trust_level_name(parse_trust_level("partial")), content="partial")
   inspect(trust_level_name(parse_trust_level("untrusted")), content="untrusted")
 }
+
+///|
+test "audit helpers load external manifest signature key and trust store" {
+  let dir = "tmp_moonguard_audit_fixture"
+  cleanup_audit_fixture(dir)
+  @fs.create_dir(dir) catch {
+    _ => ()
+  }
+  @fs.create_dir(join_path(dir, "src")) catch {
+    _ => ()
+  }
+  @fs.write_string_to_file(join_path(dir, "src/main.mbt"), "fn main {}") catch {
+    _ => fail("failed to write source fixture")
+  }
+  let entries : Array[@manifest.FileEntry] = [
+    { path: "src/main.mbt", content: "fn main {}" },
+  ]
+  let manifest = @manifest.generate_manifest("pkg", "1.0.0", entries)
+  let manifest_json = @manifest.manifest_to_json(manifest)
+  @fs.write_string_to_file(join_path(dir, "manifest.json"), manifest_json) catch {
+    _ => fail("failed to write manifest fixture")
+  }
+  let keypair = @crypto.generate_keypair(demo_seed())
+  let sig_hex = @crypto.signature_to_hex(@crypto.sign(manifest_json, keypair))
+  @fs.write_string_to_file(join_path(dir, "package.sig"), sig_hex + "\n") catch {
+    _ => fail("failed to write signature fixture")
+  }
+  let store = @trust.TrustStore::new()
+  let _ = store.add_key(
+    "alice",
+    keypair.public_key,
+    "alice",
+    @trust.TrustLevel::Full,
+  )
+  @fs.write_string_to_file(
+    join_path(dir, "moon_guard_trust.json"),
+    @trust.trust_store_to_json(store),
+  ) catch {
+    _ => fail("failed to write trust store fixture")
+  }
+  @fs.write_string_to_file(
+    join_path(dir, "public_key.pem"),
+    @trust.public_key_to_pem(keypair.public_key),
+  ) catch {
+    _ => fail("failed to write public key fixture")
+  }
+  let args : Array[String] = ["moon_guard", "audit", "pkg", "1.0.0", dir]
+  inspect(audit_dir_arg(args), content="tmp_moonguard_audit_fixture")
+  match find_sig_file(dir) {
+    Some(path) =>
+      inspect(path, content="tmp_moonguard_audit_fixture/package.sig")
+    None => fail("expected signature path")
+  }
+  match read_audit_manifest(args, dir) {
+    Some(m) => inspect(m.total_files, content="1")
+    None => fail("expected manifest fixture")
+  }
+  match read_audit_signature(args, dir) {
+    Some(sig) => {
+      inspect(sig.length(), content="128")
+      assert_eq(sig, sig_hex)
+    }
+    None => fail("expected signature fixture")
+  }
+  match load_audit_trust_store(args, dir) {
+    Some(ts) => {
+      inspect(ts.key_count(), content="1")
+      match audit_signer_key(args, ts) {
+        Some(key_id) => inspect(key_id, content="alice")
+        None => fail("expected signer key")
+      }
+    }
+    None => fail("expected trust store fixture")
+  }
+  match read_audit_public_key(args, dir) {
+    Some(pubkey) => assert_eq(pubkey, keypair.public_key)
+    None => fail("expected public key fixture")
+  }
+  cleanup_audit_fixture(dir)
+}
+
+///|
+test "audit manifest is not self-generated when external manifest is missing" {
+  let args : Array[String] = [
+    "moon_guard", "audit", "pkg", "1.0.0", "src/main.mbt:fn main {}",
+  ]
+  inspect(audit_dir_arg(args), content="")
+  assert_true(read_audit_manifest(args, "") is None)
+}
+
+///|
+fn cleanup_audit_fixture(dir : String) -> Unit {
+  if @fs.path_exists(join_path(dir, "manifest.json")) {
+    @fs.remove_file(join_path(dir, "manifest.json")) catch {
+      _ => ()
+    }
+  }
+  if @fs.path_exists(join_path(dir, "package.sig")) {
+    @fs.remove_file(join_path(dir, "package.sig")) catch {
+      _ => ()
+    }
+  }
+  if @fs.path_exists(join_path(dir, "moon_guard_trust.json")) {
+    @fs.remove_file(join_path(dir, "moon_guard_trust.json")) catch {
+      _ => ()
+    }
+  }
+  if @fs.path_exists(join_path(dir, "public_key.pem")) {
+    @fs.remove_file(join_path(dir, "public_key.pem")) catch {
+      _ => ()
+    }
+  }
+  if @fs.path_exists(join_path(dir, "src/main.mbt")) {
+    @fs.remove_file(join_path(dir, "src/main.mbt")) catch {
+      _ => ()
+    }
+  }
+  if @fs.path_exists(join_path(dir, "src")) {
+    @fs.remove_dir(join_path(dir, "src")) catch {
+      _ => ()
+    }
+  }
+  if @fs.path_exists(dir) {
+    @fs.remove_dir(dir) catch {
+      _ => ()
+    }
+  }
+}

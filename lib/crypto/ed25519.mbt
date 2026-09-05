@@ -89,7 +89,7 @@ pub fn generate_keypair(seed : String) -> KeyPair {
   let scalar = le_bytes_to_bigint(scalar_bytes)
   let pub_point = scalar_mult(scalar, base_point())
   let pub_bytes = point_encode(pub_point)
-  KeyPair::{ public_key: bytes_to_hex_str(pub_bytes), secret_key: seed }
+  KeyPair::{ public_key: bytes_to_hex_str(pub_bytes), secret_key: seed, }
 }
 
 ///|
@@ -117,7 +117,7 @@ pub fn sign(message : String, keypair : KeyPair) -> Signature {
   // S = (r + k * scalar) mod L
   let s_val = (r + k * scalar) % ed_L
   let s_bytes = bigint_to_le_bytes(s_val, 32)
-  Signature::{ r: bytes_to_hex_str(r_bytes), s: bytes_to_hex_str(s_bytes) }
+  Signature::{ r: bytes_to_hex_str(r_bytes), s: bytes_to_hex_str(s_bytes), }
 }
 
 ///|

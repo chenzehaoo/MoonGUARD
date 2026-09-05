@@ -210,7 +210,7 @@ pub fn report_to_json(report : SecurityReport) -> String {
 /// can't smuggle stray JSON into a report document. This keeps the wire
 /// format well-formed even for hostile package/file names.
 fn escape_json_string(input : String) -> String {
-  let buf = StringBuilder::new(size_hint=input.length() + 8)
+  let buf = StringBuilder()
   for i = 0; i < input.length(); i = i + 1 {
     let c = input[i]
     match c {
@@ -277,5 +277,5 @@ pub fn make_finding(
   risk : RiskLevel,
   remediation : String,
 ) -> Finding {
-  { title, description, risk_level: risk, remediation }
+  { title, description, risk_level: risk, remediation, }
 }

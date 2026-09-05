@@ -145,6 +145,9 @@ fn point_double(p : ExtPoint) -> ExtPoint {
 ///|
 pub fn scalar_mult(scalar : BigInt, point : ExtPoint) -> ExtPoint {
   let mut result = point_zero()
+  if scalar == @bigint.BigInt::from_int(0) {
+    return result
+  }
   let mut temp = point
   let bits = scalar.bit_length()
   let scalar_bytes = bigint_to_le_bytes(scalar, (bits + 7) / 8)

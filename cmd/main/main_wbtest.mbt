@@ -88,7 +88,7 @@ test "audit helpers load external manifest signature key and trust store" {
     _ => fail("failed to write source fixture")
   }
   let entries : Array[@manifest.FileEntry] = [
-    { path: "src/main.mbt", content: "fn main {}" },
+    { path: "src/main.mbt", content: "fn main {}", },
   ]
   let manifest = @manifest.generate_manifest("pkg", "1.0.0", entries)
   let manifest_json = @manifest.manifest_to_json(manifest)

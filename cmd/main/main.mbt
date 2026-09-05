@@ -125,7 +125,7 @@ fn cmd_verify(args : Array[String]) -> Unit {
   let pubkey = args[4]
   let sig_r = @manifest.take_chars_(sig_hex, 64)
   let sig_s = @manifest.slice_chars_(sig_hex, 64, 128)
-  let sig = @crypto.Signature::{ r: sig_r, s: sig_s }
+  let sig = @crypto.Signature::{ r: sig_r, s: sig_s, }
   if @crypto.verify(msg, sig, pubkey) {
     println("Verification: PASS")
   } else {
@@ -433,7 +433,7 @@ fn scan_files_to_entries(
     }
     let full = dir + "/" + rel
     let content = @fs.read_file_to_string(full) catch { _ => continue }
-    entries.push(@manifest.FileEntry::{ path: rel, content })
+    entries.push(@manifest.FileEntry::{ path: rel, content, })
   }
   entries
 }
@@ -619,7 +619,7 @@ fn read_public_key_input(input : String) -> String? {
 
 ///|
 fn normalize_hex(text : String, expected_len : Int) -> String? {
-  let buf = StringBuilder::new(size_hint=expected_len)
+  let buf = StringBuilder()
   for i = 0; i < text.length(); i = i + 1 {
     let c = text[i]
     if c == ' ' || c == '\n' || c == '\r' || c == '\t' {
@@ -766,7 +766,7 @@ fn parse_file_entries(
     if colon_idx >= 0 {
       let path = @manifest.take_chars_(arg, colon_idx)
       let content = @manifest.slice_chars_(arg, colon_idx + 1, arg.length())
-      entries.push(@manifest.FileEntry::{ path, content })
+      entries.push(@manifest.FileEntry::{ path, content, })
     }
   }
   if entries.length() == 0 {

@@ -118,7 +118,7 @@ test "ed25519 verify rejects s >= L malleability" {
   let sig_s = "0000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed"
   let invalid = @crypto.verify(
     "hello",
-    @crypto.Signature::{ r: sig_r, s: sig_s },
+    @crypto.Signature::{ r: sig_r, s: sig_s, },
     kp.public_key,
   )
   inspect(invalid, content="false")

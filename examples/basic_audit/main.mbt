@@ -19,7 +19,7 @@ fn main {
 
   // 2. Build a manifest with two files.
   let entries : Array[@manifest.FileEntry] = [
-    { path: "src/main.mbt", content: "fn main { println(\"hello\") }" },
+    { path: "src/main.mbt", content: "fn main { println(\"hello\") }", },
     {
       path: "src/lib.mbt",
       content: "pub fn add(a: Int, b: Int) -> Int { a + b }",

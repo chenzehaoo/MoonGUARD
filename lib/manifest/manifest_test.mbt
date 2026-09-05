@@ -63,9 +63,9 @@ test "compute_file_hash produces correct hash and size" {
 ///|
 test "generate_manifest builds manifest from entries" {
   let entries = [
-    @manifest.FileEntry::{ path: "a.mbt", content: "let a = 1" },
-    @manifest.FileEntry::{ path: "b.mbt", content: "let b = 2" },
-    @manifest.FileEntry::{ path: "c.mbt", content: "let c = 3" },
+    @manifest.FileEntry::{ path: "a.mbt", content: "let a = 1", },
+    @manifest.FileEntry::{ path: "b.mbt", content: "let b = 2", },
+    @manifest.FileEntry::{ path: "c.mbt", content: "let c = 3", },
   ]
   let m = @manifest.generate_manifest("my_pkg", "0.1.0", entries)
   inspect(m.total_files, content="3")
@@ -78,7 +78,7 @@ test "generate_manifest builds manifest from entries" {
 
 ///|
 test "verify_manifest detects no changes" {
-  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "hello" }]
+  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "hello", }]
   let m = @manifest.generate_manifest("pkg", "1.0.0", entries)
   let mismatches = @manifest.verify_manifest(m, entries)
   inspect(mismatches.length(), content="0")
@@ -86,9 +86,9 @@ test "verify_manifest detects no changes" {
 
 ///|
 test "verify_manifest detects modified file" {
-  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "hello" }]
+  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "hello", }]
   let m = @manifest.generate_manifest("pkg", "1.0.0", entries)
-  let modified = [@manifest.FileEntry::{ path: "a.mbt", content: "world" }]
+  let modified = [@manifest.FileEntry::{ path: "a.mbt", content: "world", }]
   let mismatches = @manifest.verify_manifest(m, modified)
   inspect(mismatches.length(), content="1")
   inspect(mismatches[0], content="a.mbt")
@@ -97,13 +97,13 @@ test "verify_manifest detects modified file" {
 ///|
 test "verify_manifest detects added and removed files" {
   let entries = [
-    @manifest.FileEntry::{ path: "a.mbt", content: "aaa" },
-    @manifest.FileEntry::{ path: "b.mbt", content: "bbb" },
+    @manifest.FileEntry::{ path: "a.mbt", content: "aaa", },
+    @manifest.FileEntry::{ path: "b.mbt", content: "bbb", },
   ]
   let m = @manifest.generate_manifest("pkg", "1.0.0", entries)
   let changed = [
-    @manifest.FileEntry::{ path: "a.mbt", content: "aaa" },
-    @manifest.FileEntry::{ path: "c.mbt", content: "ccc" },
+    @manifest.FileEntry::{ path: "a.mbt", content: "aaa", },
+    @manifest.FileEntry::{ path: "c.mbt", content: "ccc", },
   ]
   let mismatches = @manifest.verify_manifest(m, changed)
   // c.mbt is new (not in manifest), b.mbt is missing (in manifest but not in entries)
@@ -113,7 +113,7 @@ test "verify_manifest detects added and removed files" {
 ///|
 test "manifest_to_json serialization" {
   let entries = [
-    @manifest.FileEntry::{ path: "main.mbt", content: "fn main {}" },
+    @manifest.FileEntry::{ path: "main.mbt", content: "fn main {}", },
   ]
   let m = @manifest.generate_manifest("demo", "0.1.0", entries)
   let json = @manifest.manifest_to_json(m)
@@ -125,8 +125,8 @@ test "manifest_to_json serialization" {
 ///|
 test "manifest_summary" {
   let entries = [
-    @manifest.FileEntry::{ path: "a.mbt", content: "12345" },
-    @manifest.FileEntry::{ path: "b.mbt", content: "67890" },
+    @manifest.FileEntry::{ path: "a.mbt", content: "12345", },
+    @manifest.FileEntry::{ path: "b.mbt", content: "67890", },
   ]
   let m = @manifest.generate_manifest("my_pkg", "2.0.0", entries)
   let s = @manifest.manifest_summary(m)
@@ -151,8 +151,8 @@ test "slice_chars_ returns [start, end) substring" {
 ///|
 test "manifest_from_json round-trips manifest_to_json" {
   let entries = [
-    @manifest.FileEntry::{ path: "a.mbt", content: "let a = 1" },
-    @manifest.FileEntry::{ path: "src/b.mbt", content: "let b = 2" },
+    @manifest.FileEntry::{ path: "a.mbt", content: "let a = 1", },
+    @manifest.FileEntry::{ path: "src/b.mbt", content: "let b = 2", },
   ]
   let m = @manifest.generate_manifest("my_pkg", "2.0.0", entries)
   let json = @manifest.manifest_to_json(m)

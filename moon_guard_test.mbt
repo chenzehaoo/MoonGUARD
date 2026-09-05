@@ -14,8 +14,8 @@ test "end-to-end tamper detection" {
   let file2 = "src/lib.mbt"
   let content2 = "// Library code\npub fn add(a: Int, b: Int) -> Int { a + b }"
   let entries : Array[@manifest.FileEntry] = [
-    { path: file1, content: content1 },
-    { path: file2, content: content2 },
+    { path: file1, content: content1, },
+    { path: file2, content: content2, },
   ]
   let manifest = @manifest.generate_manifest("my_package", "1.0.0", entries)
   assert_eq(manifest.total_files, 2)
@@ -57,8 +57,8 @@ test "end-to-end tamper detection" {
   // 6. Attacker tampers with file1 — swap in malicious content.
   let tampered_content = "// Malicious code injected!\nfn main() { println(\"HACKED\") }"
   let tampered_entries : Array[@manifest.FileEntry] = [
-    { path: file1, content: tampered_content },
-    { path: file2, content: content2 },
+    { path: file1, content: tampered_content, },
+    { path: file2, content: content2, },
   ]
   let mismatches = @manifest.verify_manifest(manifest, tampered_entries)
   assert_eq(mismatches.length(), 1)
@@ -126,8 +126,8 @@ test "end-to-end tamper detection" {
 /// The same pipeline without tampering must report PASS everywhere.
 test "legitimate package passes all checks" {
   let entries : Array[@manifest.FileEntry] = [
-    { path: "src/main.mbt", content: "fn main {}" },
-    { path: "src/lib.mbt", content: "pub fn hello() -> String { \"hi\" }" },
+    { path: "src/main.mbt", content: "fn main {}", },
+    { path: "src/lib.mbt", content: "pub fn hello() -> String { \"hi\" }", },
   ]
   let manifest = @manifest.generate_manifest("good_pkg", "0.1.0", entries)
   let mismatches = @manifest.verify_manifest(manifest, entries)

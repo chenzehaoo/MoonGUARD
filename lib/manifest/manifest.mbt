@@ -408,7 +408,7 @@ pub fn manifest_from_json(json : String) -> Manifest? {
       Some(n) => n
       None => 0
     }
-    files.push(FileHash::{ path, hash, size })
+    files.push(FileHash::{ path, hash, size, })
   }
   Some(Manifest::{
     version,
@@ -469,7 +469,7 @@ fn find_string_field(json : String, key : String) -> String? {
     return None
   }
   i = i + 1
-  let buf = StringBuilder::new(size_hint=16)
+  let buf = StringBuilder()
   while i < json.length() {
     let c = json[i]
     if c == '"' {
@@ -543,7 +543,7 @@ fn find_json_array(json : String, key : String) -> Array[String]? {
     return None
   }
   i = i + 1
-  let buf = StringBuilder::new(size_hint=16)
+  let buf = StringBuilder()
   while i < json.length() {
     let c = json[i]
     if c == ']' {
@@ -580,7 +580,7 @@ fn find_json_array(json : String, key : String) -> Array[String]? {
 /// `String::substring(start=0, end=n)` call site used by the verify and
 /// CLI modules.
 pub fn take_chars_(s : String, n : Int) -> String {
-  let buf = StringBuilder::new(size_hint=n)
+  let buf = StringBuilder()
   let cap = if n < s.length() { n } else { s.length() }
   for i = 0; i < cap; i = i + 1 {
     buf.write_char(s[i].unsafe_to_char())
@@ -593,7 +593,7 @@ pub fn take_chars_(s : String, n : Int) -> String {
 /// deprecated `String::substring(start, end)` call site used by the verify
 /// and CLI modules.
 pub fn slice_chars_(s : String, start : Int, end_ : Int) -> String {
-  let buf = StringBuilder::new(size_hint=end_ - start)
+  let buf = StringBuilder()
   let upper = if end_ < s.length() { end_ } else { s.length() }
   for i = start; i < upper; i = i + 1 {
     buf.write_char(s[i].unsafe_to_char())

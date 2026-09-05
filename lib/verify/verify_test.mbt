@@ -127,7 +127,7 @@ test "typosquat_summary aggregates hits per suspect" {
 
 ///|
 test "audit_package rejects when file hashes don't match" {
-  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "hello" }]
+  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "hello", }]
   let manifest = @manifest.generate_manifest("audit", "1.0.0", entries)
   let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
   let kp = @crypto.generate_keypair(seed)
@@ -140,7 +140,7 @@ test "audit_package rejects when file hashes don't match" {
     "alice",
     @trust.TrustLevel::Full,
   )
-  let tampered = [@manifest.FileEntry::{ path: "a.mbt", content: "world" }]
+  let tampered = [@manifest.FileEntry::{ path: "a.mbt", content: "world", }]
   let result = audit_package(
     "audit",
     "1.0.0",
@@ -157,7 +157,7 @@ test "audit_package rejects when file hashes don't match" {
 
 ///|
 test "audit_package rejects untrusted signer" {
-  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "ok" }]
+  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "ok", }]
   let manifest = @manifest.generate_manifest("audit", "1.0.0", entries)
   let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
   let kp = @crypto.generate_keypair(seed)
@@ -186,7 +186,7 @@ test "audit_package rejects untrusted signer" {
 
 ///|
 test "audit_package warns on missing signer" {
-  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "ok" }]
+  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "ok", }]
   let manifest = @manifest.generate_manifest("audit", "1.0.0", entries)
   let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
   let kp = @crypto.generate_keypair(seed)
@@ -212,7 +212,7 @@ test "audit_package warns on missing signer" {
 
 ///|
 test "audit_package passes on clean trusted package" {
-  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "ok" }]
+  let entries = [@manifest.FileEntry::{ path: "a.mbt", content: "ok", }]
   let manifest = @manifest.generate_manifest("audit", "1.0.0", entries)
   let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
   let kp = @crypto.generate_keypair(seed)

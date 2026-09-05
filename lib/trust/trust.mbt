@@ -39,7 +39,7 @@ pub(all) struct TrustStore {
 
 ///|
 pub fn TrustStore::new() -> TrustStore {
-  TrustStore::{ keys: [] }
+  TrustStore::{ keys: [], }
 }
 
 ///|
@@ -187,7 +187,7 @@ pub fn normalize_public_key(public_key : String) -> String? {
   if public_key.length() != 64 {
     return None
   }
-  let buf = StringBuilder::new(size_hint=64)
+  let buf = StringBuilder()
   for i = 0; i < 64; i = i + 1 {
     let c = public_key[i]
     let ok = (c >= 48 && c <= 57) ||
@@ -312,7 +312,7 @@ fn trust_level_from_str(s : String) -> TrustLevel {
 pub fn public_key_to_pem(public_key : String) -> String {
   let prefix = "-----BEGIN MOONGUARD PUBLIC KEY-----\n"
   let suffix = "-----END MOONGUARD PUBLIC KEY-----\n"
-  let buf = StringBuilder::new(size_hint=public_key.length() * 2)
+  let buf = StringBuilder()
   buf.write_string(prefix)
   // Emit 64-char chunks until fewer than 64 remain, then flush the tail.
   let full_chunks = public_key.length() / 64
@@ -320,7 +320,7 @@ pub fn public_key_to_pem(public_key : String) -> String {
   while chunk_idx < full_chunks {
     // Each chunk is built from 64 individual chars to avoid Result-typed
     // slicing APIs.
-    let line = StringBuilder::new(size_hint=64)
+    let line = StringBuilder()
     let mut k = 0
     while k < 64 {
       line.write_char(public_key[chunk_idx * 64 + k].unsafe_to_char())
@@ -331,7 +331,7 @@ pub fn public_key_to_pem(public_key : String) -> String {
     chunk_idx = chunk_idx + 1
   }
   if full_chunks * 64 < public_key.length() {
-    let tail = StringBuilder::new(size_hint=public_key.length())
+    let tail = StringBuilder()
     let mut k = full_chunks * 64
     while k < public_key.length() {
       tail.write_char(public_key[k].unsafe_to_char())
@@ -385,7 +385,7 @@ pub fn public_key_from_pem(pem : String) -> String? {
   }
   let body = @manifest.slice_chars_(pem, start_idx, end_idx)
   // Strip whitespace and dashes to isolate the hex digits.
-  let buf = StringBuilder::new(size_hint=64)
+  let buf = StringBuilder()
   i = 0
   while i < body.length() {
     let c = body[i]

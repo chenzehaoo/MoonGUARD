@@ -43,7 +43,7 @@ pub fn verify_package(
   }
   let sig_r = @manifest.take_chars_(signature_hex, 64)
   let sig_s = @manifest.slice_chars_(signature_hex, 64, 128)
-  let sig = @crypto.Signature::{ r: sig_r, s: sig_s }
+  let sig = @crypto.Signature::{ r: sig_r, s: sig_s, }
   let valid = @crypto.verify(content, sig, public_key_hex)
   if !valid {
     errors.push("signature verification failed")

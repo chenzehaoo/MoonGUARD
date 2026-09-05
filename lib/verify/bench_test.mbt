@@ -5,7 +5,7 @@
 ///|
 test "bench: sha256 of 1KB string completes quickly" {
   // Build a 1KB string by repeating "x" 1024 times.
-  let payload = StringBuilder::new(size_hint=1024)
+  let payload = StringBuilder()
   let mut i = 0
   while i < 1024 {
     payload.write_char('x')
@@ -43,7 +43,7 @@ test "bench: typosquat detector handles 100 suspects in linear time" {
 test "bench: verify_package rejects malformed signatures quickly" {
   // Pad a wrong-length signature so the rejection happens at the length
   // check, before any expensive crypto work.
-  let bad = StringBuilder::new(size_hint=130)
+  let bad = StringBuilder()
   let mut i = 0
   while i < 130 {
     bad.write_char('0')

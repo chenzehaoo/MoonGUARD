@@ -79,7 +79,7 @@ test "fuzz: PEM encode/decode roundtrip across 20 random hex strings" {
   // Generate 20 deterministic 64-char strings.
   let mut i = 0
   while i < 20 {
-    let buf = StringBuilder::new(size_hint=64)
+    let buf = StringBuilder()
     let mut k = 0
     while k < 64 {
       let idx = (i * 7 + k * 13) % 16
@@ -101,8 +101,8 @@ test "fuzz: normalize_public_key roundtrips mixed-case hex" {
   let hex_chars = "0123456789abcdef"
   let mut i = 0
   while i < 20 {
-    let lower = StringBuilder::new(size_hint=64)
-    let upper = StringBuilder::new(size_hint=64)
+    let lower = StringBuilder()
+    let upper = StringBuilder()
     let mut k = 0
     while k < 64 {
       let idx = (i * 11 + k * 5) % 16
